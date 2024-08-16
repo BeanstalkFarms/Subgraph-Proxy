@@ -1,15 +1,14 @@
 // Module-scoped variable for global use. This is the latest block available on the chain
-let chainHeads = {};
+class ChainHeadCache {
+  static chainHeads = {};
 
-const getChainHead = (chain) => {
-  return chainHeads[chain];
-};
+  static getChainHead(chain) {
+    return this.chainHeads[chain];
+  }
 
-const setChainHead = (chain, blockNumber) => {
-  chainHeads[chain] = blockNumber;
-};
+  static setChainHead(chain, blockNumber) {
+    this.chainHeads[chain] = blockNumber;
+  }
+}
 
-module.exports = {
-  getChainHead,
-  setChainHead
-};
+module.exports = ChainHeadCache;

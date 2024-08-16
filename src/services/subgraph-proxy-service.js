@@ -1,4 +1,4 @@
-const GraphqlQueryUtil = require('../utils/graphql-query');
+const GraphqlQueryUtil = require('../utils/query-manipulation');
 require('../datasources/subgraph-clients');
 
 class SubgraphProxyService {

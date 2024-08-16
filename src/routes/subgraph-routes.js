@@ -1,5 +1,6 @@
 const Router = require('koa-router');
 const SubgraphProxyService = require('../services/subgraph-proxy-service');
+
 const router = new Router({
   prefix: '/'
 });
