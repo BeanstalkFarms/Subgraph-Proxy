@@ -1,10 +1,4 @@
-const rateLimitConfig = {
-  id: 'alchemy-subgraphs',
-  requestsPerInterval: 30,
-  maxBuffer: 300,
-  interval: 1000
-};
-
+// Going to use bottleneck dependency instead
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -14,20 +8,20 @@ class RateLimitUtil {
   static queue = {};
   // Timestamp corresponding to when the request was allowed to begin.
   // There should be no more than `config.requestsPerInterval` entries in here at a time.
-  static passedTimestamps = {};
+  static startTimestamps = {};
 
   static wait(config) {
     return new Promise((resolve, reject) => {
       (async () => {
-        if (!this.passedTimestamps[config.id]) {
-          this.passedTimestamps[config.id] = [];
+        if (!this.startTimestamps[config.id]) {
+          this.startTimestamps[config.id] = [];
           this.queue[config.id] = 0;
         }
 
         this.removePastEntries(config);
 
-        if (this.passedTimestamps.length > config.maxBuffer) {
-          reject(`Exceeded rate limit for ${config.id}`);
+        if (this.startTimestamps.length > config.maxBuffer) {
+          reject(`Exceeded rate limit buffer for ${config.id}`);
         }
 
         // Set place in line values
@@ -39,7 +33,7 @@ class RateLimitUtil {
         while (true) {
           if (myId <= this.queue[config.requestsPerInterval - 1] ?? Number.MAX_SAFE_INTEGER) {
             // Now that the request is allowed through, add to list
-            this.passedTimestamps[config.id].push(now);
+            this.startTimestamps[config.id].push(now);
             resolve();
             return;
           } else {
@@ -54,10 +48,14 @@ class RateLimitUtil {
   // Remove timestamps older than the configured lifetime
   static removePastEntries(config) {
     const now = Date.now();
-    while (this.passedTimestamps[config.id].length && this.passedTimestamps[config.id][0] <= now - config.interval) {
-      this.passedTimestamps[config.id].shift();
+    while (this.startTimestamps[config.id].length && this.startTimestamps[config.id][0] <= now - config.interval) {
+      this.startTimestamps[config.id].shift();
       this.queue[config.id].shift();
     }
+  }
+
+  static currentCapacity(config) {
+    return this.startTimestamps[config.id].length / config.requestsPerInterval;
   }
 
   static getMaxId(config) {

@@ -1,30 +1,32 @@
-require('dotenv').config();
+const { GraphQLClient } = require('graphql-request');
+const { ENDPOINTS, ENDPOINT_SG_IDS, ENABLED_SUBGRAPHS } = require('../utils/env');
 
-const ALCHEMY_PREFIX = `https://graph.bean.money/`;
-const GRAPH_PREFIX = `https://gateway-arbitrum.network.thegraph.com/api/${process.env.GRAPH_API_KEY}/subgraphs/id/`;
+class SubgraphClients {
+  // Stores the clients, key format endpointIndex-subgraphIndex (based on the ordering in .env)
+  static clients = {};
 
-const ENABLED_SUBGRAPHS = process.env.SUBGRAPH_SLUGS?.split(',');
-const UNDERYING_ALCHEMY = process.env.ALCHEMY_SUBGRAPH_NAMES?.split(',');
-const UNDERYING_GRAPH = process.env.GRAPH_SUBGRAPH_IDS?.split(',');
-
-if (ENABLED_SUBGRAPHS.length !== UNDERYING_ALCHEMY.length || UNDERYING_ALCHEMY.length !== UNDERYING_GRAPH.length) {
-  throw new Error('Invalid environment configured.');
-}
-console.log(UNDERYING_GRAPH);
-
-const clients = {};
-
-function getClient(url) {
-  if (!clients[url]) {
-    clients[url] = new GraphQLClient(url);
+  static getClient(endpointIndex, subgraphIndex) {
+    const key = `${endpointIndex}-${subgraphIndex}`;
+    if (!this.clients[key]) {
+      this.clients[key] = new GraphQLClient(
+        ENDPOINTS[endpointIndex].replace('<sg-id>', ENDPOINT_SG_IDS[endpointIndex][subgraphIndex])
+      );
+    }
+    return this.clients[key];
   }
-  return clients[url];
+
+  static makeCallableClient(endpointIndex, subgraphName) {
+    const subgraphIndex = ENABLED_SUBGRAPHS.indexOf(subgraphName);
+    if (subgraphIndex === -1) {
+      throw new Error(`Unsupported subgraph: ${subgraphName}`);
+    }
+
+    return async (query) => {
+      const client = this.getClient(endpointIndex, subgraphIndex);
+      const response = await client.request(query);
+      return response;
+    };
+  }
 }
 
-function clientBuilder(proxySlug) {
-  return async (query) => {
-    const client = getClient(url);
-    const response = await client.request(query);
-    return response;
-  };
-}
+module.exports = SubgraphClients;
