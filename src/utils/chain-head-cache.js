@@ -11,4 +11,9 @@ class ChainHeadCache {
   }
 }
 
+// TODO: should also cache what is the latest available block across all the subgraphs.
+// If there is a strategy to "wait until sunrise" for example, this way a subequent
+// query does not need to explicitly provide a block number, it will guarantee to serve the result
+// minimally of the latest indexed block
+
 module.exports = ChainHeadCache;

@@ -5,7 +5,10 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node ./src/app.js",
+    "docker": "./docker/build.sh local && ./docker/start.sh local 3001",
+    "docker:stop": "./docker/stop.sh local",
     "test": "jest",
+    "debug": "node --inspect ./src/app.js",
     "prettier": "prettier --write ."
   },
   "jest": {
