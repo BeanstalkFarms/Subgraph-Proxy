@@ -34,6 +34,7 @@ class SubgraphProxyService {
     // Identify underutilized endpoint with preference ratio.
     const underutilizedIndex = 0;
 
+    // TODO: prefer whichever client is on a newer version
     console.log('query:', introspectionQuery);
 
     const client = SubgraphClients.makeCallableClient(underutilizedIndex, subgraphName);
@@ -44,12 +45,23 @@ class SubgraphProxyService {
     console.log(`Handling request for ${subgraphName}:\n\n${originalQuery}\n-------`);
     const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
     console.log(`Query with metadata added:\n\n${queryWithMetadata}\n-------`);
-    const result = []; // subgraph query here
-    const response = GraphqlQueryUtil.removeUnrequestedMetadataFromResult(originalQuery, result);
-    // return response;
 
     const client = SubgraphClients.makeCallableClient(0, subgraphName);
-    return await client(originalQuery);
+    const queryResult = await client(queryWithMetadata);
+
+    const version = queryResult.version.versionNumber;
+    const deployment = queryResult._meta.deployment;
+    const chain = queryResult.version.chain;
+
+    GraphqlQueryUtil.removeUnrequestedMetadataFromResult(queryResult, originalQuery);
+    return {
+      meta: {
+        version,
+        deployment,
+        chain
+      },
+      body: queryResult
+    };
   }
 }
 

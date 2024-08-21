@@ -17,10 +17,12 @@ router.post(':subgraphName', async (ctx) => {
     ? await SubgraphProxyService.handleProxyIntrospection(subgraphName, body.query)
     : await SubgraphProxyService.handleProxyRequest(subgraphName, body.query);
 
+  ctx.set('X-Version', proxiedResult.meta.version);
+  ctx.set('X-Deployment', proxiedResult.meta.deployment);
+  ctx.set('X-Chain', proxiedResult.meta.chain);
+
   ctx.body = {
-    data: proxiedResult,
-    test: 'something unexpected!',
-    version: 'can put subgraph versioning information here?'
+    data: proxiedResult.body
   };
 });
 
