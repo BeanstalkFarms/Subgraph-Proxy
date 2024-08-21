@@ -22,14 +22,7 @@ const graphConfig = {
 };
 
 class SubgraphProxyService {
-  // Gets the latest known available version of the schema
-  static async handleProxyIntrospection(subgraphName, introspectionQuery) {
-    const endpointIndex = LoadBalanceUtil.chooseEndpoint([]);
-    const client = SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
-    return await client(introspectionQuery);
-  }
-
-  // Proxies a regular request, accounting for version numbers and indexed blocks
+  // Proxies a subgraph request, accounting for version numbers and indexed blocks
   static async handleProxyRequest(subgraphName, originalQuery) {
     console.log(`Handling request for ${subgraphName}:\n\n${originalQuery}\n-------`);
     const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);

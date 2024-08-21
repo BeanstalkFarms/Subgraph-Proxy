@@ -12,10 +12,7 @@ router.post(':subgraphName', async (ctx) => {
   const subgraphName = ctx.params.subgraphName;
   const body = ctx.request.body;
 
-  // Introspection query has a simplified proxy process
-  const proxiedResult = body.query.includes('query IntrospectionQuery {')
-    ? await SubgraphProxyService.handleProxyIntrospection(subgraphName, body.query)
-    : await SubgraphProxyService.handleProxyRequest(subgraphName, body.query);
+  const proxiedResult = await SubgraphProxyService.handleProxyRequest(subgraphName, body.query);
 
   ctx.set('X-Version', proxiedResult.meta.version);
   ctx.set('X-Deployment', proxiedResult.meta.deployment);
