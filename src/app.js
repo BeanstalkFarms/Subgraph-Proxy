@@ -17,8 +17,8 @@ async function appStartup() {
   app.use(subgraphRoutes.routes());
   app.use(subgraphRoutes.allowedMethods());
 
-  app.listen(3000, () => {
-    console.log('Server running on port 3000');
+  app.listen(3001, () => {
+    console.log('Server running on port 3001');
   });
 }
 appStartup();
