@@ -166,8 +166,32 @@ describe('Subgraph Proxy - Core', () => {
       ]);
       expect(endpointArgCapture[3]).toEqual([]);
     });
-    test('One endpoint is out of sync', async () => {});
-    test('Both endpoints are out of sync', async () => {});
+    test('One endpoint is out of sync', async () => {
+      jest
+        .spyOn(SubgraphClients, 'makeCallableClient')
+        .mockReturnValueOnce(async () => beanNewDeploymentResponse)
+        .mockReturnValueOnce(async () => beanResponse);
+
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
+
+      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(2);
+      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
+    });
+    test('Both endpoints are out of sync', async () => {
+      jest
+        .spyOn(SubgraphClients, 'makeCallableClient')
+        .mockReturnValueOnce(async () => beanNewDeploymentResponse)
+        .mockReturnValueOnce(async () => beanNewDeploymentResponse);
+
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(EndpointError);
+
+      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
+      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
+      expect(endpointArgCapture[2]).toEqual([
+        [0, 1],
+        [0, 1]
+      ]);
+    });
 
     test('User queries far future block', async () => {});
     test('User queries current block that is indexed but temporarily unavailable', async () => {});
