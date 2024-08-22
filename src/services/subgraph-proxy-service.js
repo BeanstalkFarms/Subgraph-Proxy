@@ -5,6 +5,8 @@ const GraphqlQueryUtil = require('../utils/query-manipulation');
 const EndpointError = require('../error/endpoint-error');
 const RequestError = require('../error/request-error');
 const SubgraphState = require('../utils/state/subgraph');
+const ChainState = require('../utils/state/chain');
+const LoggingUtil = require('../utils/logging');
 require('../datasources/subgraph-clients');
 
 const alchemyConfig = {
@@ -24,11 +26,7 @@ const graphConfig = {
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
   static async handleProxyRequest(subgraphName, originalQuery) {
-    console.log(`Handling request for ${subgraphName}:\n\n${originalQuery}\n-------`);
     const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
-    console.log(`Query with metadata added:\n\n${queryWithMetadata}\n-------`);
-
-    // TODO: If this method throws, have middleware catch it and provide message of either 400 or 500 depending.
     const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata);
 
     const version = queryResult.version.versionNumber;
@@ -49,22 +47,49 @@ class SubgraphProxyService {
   // Gets the result for this query from one of the available endpoints.
   // Actual proxy/load balancing orchestration is here.
   static async _getQueryResult(subgraphName, query) {
+    const startTime = new Date();
     const failedEndpoints = [];
     const unsyncdEndpoints = [];
+    const endpointHistory = [];
     const errors = [];
 
     let endpointIndex;
-    while ((endpointIndex = LoadBalanceUtil.chooseEndpoint([...failedEndpoints, ...unsyncdEndpoints])) !== -1) {
-      const client = SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
+    while (
+      (endpointIndex = LoadBalanceUtil.chooseEndpoint([...failedEndpoints, ...unsyncdEndpoints], endpointHistory)) !==
+      -1
+    ) {
+      endpointHistory.push(endpointIndex);
+      let queryResult;
       try {
-        const queryResult = await client(query);
+        const client = SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
+        queryResult = await client(query);
+      } catch (e) {
+        // Identify whether the failure is due to response being behind an explicitly requested block.
+        // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
+        const match = e.message.match(/block number (\d+) is therefore/);
+        if (match) {
+          const blockNumber = parseInt(match[1]);
+          const chain = SubgraphState.getEndpointChain(endpointIndex, subgraphName);
+          if (blockNumber > ChainState.getChainHead(chain) + 5) {
+            // User requested a future block. This is not allowed
+            throw new RequestError(`The requested block ${blockNumber} is invalid for chain ${chain}.`);
+          } else {
+            continue;
+          }
+        } else {
+          failedEndpoints.push(endpointIndex);
+          errors.push(e);
+        }
+      }
 
+      if (queryResult) {
         SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
         SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
+        SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
         SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
         SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
 
-        // The above query succeeded - any previous problem was not due to the user's query.
+        // Query to this endpoint suceeded - any previous failures were not due to the user's query.
         for (const failedIndex of failedEndpoints) {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
@@ -75,30 +100,37 @@ class SubgraphProxyService {
           continue;
         }
 
-        // The endpoint is in sync, but a more recent response had previously been given. Do not accept this response
+        // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
+        // another. Do not accept this response.
         if (queryResult._meta.block.number < SubgraphState.getLatestBlock(subgraphName)) {
-          // same as data for block number 29589999 is therefore not yet available
+          continue;
         }
 
+        LoggingUtil.logSuccessfulProxy(subgraphName, endpointIndex, startTime, endpointHistory);
         return queryResult;
-      } catch (e) {
-        // TODO: identify whether the failure is due to response being behind an explicitly requested block
-        // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
-        failedEndpoints.push(endpointIndex);
-        errors.push(e);
       }
     }
 
-    this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
+    LoggingUtil.logFailedProxy(subgraphName, startTime, endpointHistory);
+    await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
   }
 
   // Throws an exception based on the failure reason
   static async _throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints) {
     if (failedEndpoints.length > 0) {
+      if (new Date() - SubgraphState.getLatestErrorCheck(subgraphName) < 60 * 1000) {
+        if (SubgraphState.allHaveErrors(subgraphName)) {
+          throw new EndpointError('Subgraph is unable to process this request and may be offline.');
+        } else {
+          throw new RequestError(errors[0].message);
+        }
+      }
+
       // All endpoints failed. Attempt a known safe query to see if the subgraphs are down or the client
       // constructed a bad query.
-      const client = SubgraphClients.makeCallableClient(LoadBalanceUtil.chooseEndpoint([]), subgraphName);
       try {
+        SubgraphState.setLatestErrorCheck(subgraphName);
+        const client = SubgraphClients.makeCallableClient(LoadBalanceUtil.chooseEndpoint(), subgraphName);
         await client(gql`
           {
             _meta {

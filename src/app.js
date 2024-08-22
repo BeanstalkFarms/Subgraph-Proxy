@@ -14,6 +14,20 @@ async function appStartup() {
     })
   );
 
+  app.use(async (ctx, next) => {
+    try {
+      await next();
+    } catch (err) {
+      if (!(err instanceof Error)) {
+        err = new Error(err);
+      }
+      ctx.status = err.statusCode || err.status || 500;
+      ctx.body = {
+        message: err.showMessage ? err.message : 'Internal Server Error.'
+      };
+    }
+  });
+
   app.use(subgraphRoutes.routes());
   app.use(subgraphRoutes.allowedMethods());
 
