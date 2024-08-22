@@ -5,13 +5,13 @@ const SubgraphState = require('../src/utils/state/subgraph');
 const LoadBalanceUtil = require('../src/utils/load-balance');
 const SubgraphClients = require('../src/datasources/subgraph-clients');
 const ChainState = require('../src/utils/state/chain');
+const RequestError = require('../src/error/request-error');
+const EndpointError = require('../src/error/endpoint-error');
+const { captureAndReturn } = require('./utils/capture-args');
 
 const beanResponse = require('./mock-responses/bean.json');
 const beanBehindResponse = require('./mock-responses/beanBehind.json');
 const beanNewDeploymentResponse = require('./mock-responses/beanNewDeployment.json');
-const { captureAndReturn } = require('./utils/capture-args');
-const RequestError = require('../src/error/request-error');
-const EndpointError = require('../src/error/endpoint-error');
 const responseBlock = beanResponse._meta.block.number;
 const responseBehindBlock = beanBehindResponse._meta.block.number;
 const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
@@ -193,7 +193,15 @@ describe('Subgraph Proxy - Core', () => {
       ]);
     });
 
-    test('User queries far future block', async () => {});
-    test('User queries current block that is indexed but temporarily unavailable', async () => {});
+    test('User explicitly queries far future block', async () => {
+      jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementationOnce(() => async () => {
+        throw new Error(`block number ${responseBlock + 1000} is therefore not yet available`);
+      });
+
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
+      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
+    });
+    test('User explicitly queries current block that is indexed but temporarily unavailable', async () => {});
+    test('Latest indexed block is temporarily unavailable', async () => {});
   });
 });

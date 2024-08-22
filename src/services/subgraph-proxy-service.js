@@ -64,7 +64,7 @@ class SubgraphProxyService {
         const client = SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
         queryResult = await client(query);
       } catch (e) {
-        if (await this._isFutureBlockException(e)) {
+        if (await this._isFutureBlockException(e, endpointIndex, subgraphName)) {
           continue;
         } else {
           failedEndpoints.push(endpointIndex);
@@ -110,7 +110,7 @@ class SubgraphProxyService {
 
   // Identifies whether the failure is due to response being behind an explicitly requested block.
   // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
-  static async _isFutureBlockException(e) {
+  static async _isFutureBlockException(e, endpointIndex, subgraphName) {
     const match = e.message.match(/block number (\d+) is therefore/);
     if (match) {
       const blockNumber = parseInt(match[1]);
