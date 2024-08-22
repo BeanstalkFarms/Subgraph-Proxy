@@ -7,6 +7,7 @@ const RequestError = require('../error/request-error');
 const SubgraphState = require('../utils/state/subgraph');
 const ChainState = require('../utils/state/chain');
 const LoggingUtil = require('../utils/logging');
+const { throwOnInvalidName } = require('../utils/env');
 require('../datasources/subgraph-clients');
 
 const alchemyConfig = {
@@ -26,6 +27,7 @@ const graphConfig = {
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
   static async handleProxyRequest(subgraphName, originalQuery) {
+    throwOnInvalidName(subgraphName);
     const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
     const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata);
 

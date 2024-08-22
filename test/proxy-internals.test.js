@@ -207,4 +207,11 @@ describe('Subgraph Proxy - Core', () => {
       expect(endpointArgCapture[3]).toEqual([[], [0, 1]]);
     });
   });
+
+  test('No endpoints are available', async () => {
+    // TODO: might be better to write this once the circumstances are clearer by which it can happen.
+    // The idea is that an incoming request may immediately be rejected and have no available endpoints.
+    // in this situation currently, it would reach the unreachable code exception. Unclear what is the proper
+    // status code to return in this case.
+  });
 });

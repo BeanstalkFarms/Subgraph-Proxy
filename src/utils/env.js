@@ -1,3 +1,5 @@
+const RequestError = require('../error/request-error');
+
 require('dotenv').config();
 
 // Need to replace "<sg>" with the name/id of the subgraph to use
@@ -22,10 +24,17 @@ if (ENDPOINT_UTILIZATION_PREFERENCE.some((p) => p.length !== 3)) {
   throw new Error('Invalid environment configured: utilization missing required input');
 }
 
+function throwOnInvalidName(subgraphName) {
+  if (!ENABLED_SUBGRAPHS.includes(subgraphName)) {
+    throw new RequestError(`Subgraph name '${subgraphName}' is not configured for use in this gateway.`);
+  }
+}
+
 module.exports = {
   ENDPOINTS,
   ENDPOINT_RATE_LIMITS,
   ENDPOINT_UTILIZATION_PREFERENCE,
   ENABLED_SUBGRAPHS,
-  ENDPOINT_SG_IDS
+  ENDPOINT_SG_IDS,
+  throwOnInvalidName
 };

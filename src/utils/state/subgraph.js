@@ -76,7 +76,7 @@ class SubgraphState {
   // Derived functions
   static getLatestVersion(subgraphName) {
     let versions = [];
-    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(); ++i) {
+    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(subgraphName); ++i) {
       versions.push(this._endpointVersion[`${i}-${subgraphName}`]);
     }
     versions = versions.filter((v) => v !== undefined).sort(SemVerUtil.compareVersions);
@@ -85,7 +85,7 @@ class SubgraphState {
 
   static getLatestBlock(subgraphName) {
     let blocks = [];
-    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(); ++i) {
+    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(subgraphName); ++i) {
       blocks.push(this._endpointBlock[`${i}-${subgraphName}`]);
     }
     blocks = blocks.filter((v) => v !== undefined).sort();
@@ -98,7 +98,7 @@ class SubgraphState {
   }
 
   static allHaveErrors(subgraphName) {
-    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(); ++i) {
+    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(subgraphName); ++i) {
       if (!this.endpointHasErrors(i, subgraphName)) {
         return false;
       }

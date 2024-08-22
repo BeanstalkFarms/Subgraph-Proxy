@@ -29,8 +29,7 @@ class LoadBalanceUtil {
     // if preference prefers it. Otherwise try a different one.
   }
 
-  // TODO: this needs to accept the subgraph name. decentralized subgraphs might not have all, for example
-  static numEndpointsConfigured() {
+  static numEndpointsConfigured(subgraphName) {
     return ENDPOINTS.length;
   }
 }
