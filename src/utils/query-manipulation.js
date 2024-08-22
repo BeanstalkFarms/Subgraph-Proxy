@@ -23,12 +23,14 @@ class GraphqlQueryUtil {
    * @param {*} originalQuery
    */
   static removeUnrequestedMetadataFromResult(jsonResult, originalQuery) {
+    const result = JSON.parse(JSON.stringify(jsonResult));
     if (!originalQuery.includes('_meta {')) {
-      delete jsonResult._meta;
+      delete result._meta;
     }
     if (!originalQuery.includes('version(id: "subgraph") {')) {
-      delete jsonResult.version;
+      delete result.version;
     }
+    return result;
   }
 }
 

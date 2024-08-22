@@ -33,14 +33,14 @@ class SubgraphProxyService {
     const deployment = queryResult._meta.deployment;
     const chain = queryResult.version.chain;
 
-    GraphqlQueryUtil.removeUnrequestedMetadataFromResult(queryResult, originalQuery);
+    const result = GraphqlQueryUtil.removeUnrequestedMetadataFromResult(queryResult, originalQuery);
     return {
       meta: {
         version,
         deployment,
         chain
       },
-      body: queryResult
+      body: result
     };
   }
 
