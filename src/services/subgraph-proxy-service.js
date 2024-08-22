@@ -64,7 +64,7 @@ class SubgraphProxyService {
         const client = SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
         queryResult = await client(query);
       } catch (e) {
-        if (this._isFutureBlockException(e)) {
+        if (await this._isFutureBlockException(e)) {
           continue;
         } else {
           failedEndpoints.push(endpointIndex);
@@ -76,7 +76,7 @@ class SubgraphProxyService {
         this._updateStates(endpointIndex, subgraphName, queryResult, failedEndpoints);
 
         // Don't use this result if the endpoint is behind
-        if (SubgraphState.isInSync(endpointIndex, subgraphName, queryResult.version.chain)) {
+        if (await SubgraphState.isInSync(endpointIndex, subgraphName, queryResult.version.chain)) {
           if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
             LoggingUtil.logSuccessfulProxy(subgraphName, endpointIndex, startTime, endpointHistory);
             return queryResult;
@@ -109,12 +109,12 @@ class SubgraphProxyService {
 
   // Identifies whether the failure is due to response being behind an explicitly requested block.
   // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
-  static _isFutureBlockException(e) {
+  static async _isFutureBlockException(e) {
     const match = e.message.match(/block number (\d+) is therefore/);
     if (match) {
       const blockNumber = parseInt(match[1]);
       const chain = SubgraphState.getEndpointChain(endpointIndex, subgraphName);
-      if (blockNumber > ChainState.getChainHead(chain) + 5) {
+      if (blockNumber > (await ChainState.getChainHead(chain)) + 5) {
         // User requested a future block. This is not allowed
         throw new RequestError(`The requested block ${blockNumber} is invalid for chain ${chain}.`);
       }
