@@ -33,7 +33,7 @@ class SubgraphState {
   static setEndpointDeployment(endpointIndex, subgraphName, deployment) {
     if (this._endpointDeployment[`${endpointIndex}-${subgraphName}`] !== deployment) {
       // Resets block number on new deployment
-      this.setEndpointBlock(endpointIndex, subgraphName, 0);
+      this._endpointBlock[`${endpointIndex}-${subgraphName}`] = 0;
     }
     this._endpointDeployment[`${endpointIndex}-${subgraphName}`] = deployment;
   }
@@ -68,7 +68,7 @@ class SubgraphState {
   static setEndpointHasErrors(endpointIndex, subgraphName, value) {
     if (value) {
       // Resets block number on an error
-      this.setEndpointBlock(endpointIndex, subgraphName, 0);
+      this._endpointBlock[`${endpointIndex}-${subgraphName}`] = 0;
     }
     this._endpointHasErrors[`${endpointIndex}-${subgraphName}`] = value;
   }

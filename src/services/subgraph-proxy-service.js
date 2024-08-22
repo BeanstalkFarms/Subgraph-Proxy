@@ -101,7 +101,7 @@ class SubgraphProxyService {
     SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
     SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
 
-    // Query to this endpoint suceeded - any previous failures were not due to the user's query.
+    // Query to an endpoint suceeded - any previous failures were not due to the user's query.
     for (const failedIndex of failedEndpoints) {
       SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
     }
