@@ -1,7 +1,7 @@
 class SemVerUtil {
   static compareVersions(version1, version2) {
-    const v1 = version1.split('.').map(Number);
-    const v2 = version2.split('.').map(Number);
+    const v1 = version1.split('.').map((v) => Number(v.replace(/[^0-9]/g, '')));
+    const v2 = version2.split('.').map((v) => Number(v.replace(/[^0-9]/g, '')));
 
     for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
       const num1 = v1[i] || 0;

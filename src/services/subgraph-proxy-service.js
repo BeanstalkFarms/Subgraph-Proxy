@@ -45,7 +45,7 @@ class SubgraphProxyService {
   }
 
   // Gets the result for this query from one of the available endpoints.
-  // Actual proxy/load balancing orchestration is here.
+  // Actual proxy/load balancing orchestration occurs here.
   static async _getQueryResult(subgraphName, query) {
     const startTime = new Date();
     const failedEndpoints = [];
@@ -64,18 +64,8 @@ class SubgraphProxyService {
         const client = SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
         queryResult = await client(query);
       } catch (e) {
-        // Identify whether the failure is due to response being behind an explicitly requested block.
-        // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
-        const match = e.message.match(/block number (\d+) is therefore/);
-        if (match) {
-          const blockNumber = parseInt(match[1]);
-          const chain = SubgraphState.getEndpointChain(endpointIndex, subgraphName);
-          if (blockNumber > ChainState.getChainHead(chain) + 5) {
-            // User requested a future block. This is not allowed
-            throw new RequestError(`The requested block ${blockNumber} is invalid for chain ${chain}.`);
-          } else {
-            continue;
-          }
+        if (this._isFutureBlockException(e)) {
+          continue;
         } else {
           failedEndpoints.push(endpointIndex);
           errors.push(e);
@@ -83,36 +73,54 @@ class SubgraphProxyService {
       }
 
       if (queryResult) {
-        SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
-        SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
-        SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
-        SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
-        SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
-
-        // Query to this endpoint suceeded - any previous failures were not due to the user's query.
-        for (const failedIndex of failedEndpoints) {
-          SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
-        }
+        this._updateStates(endpointIndex, subgraphName, queryResult, failedEndpoints);
 
         // Don't use this result if the endpoint is behind
-        if (!SubgraphState.isInSync(endpointIndex, subgraphName, queryResult.version.chain)) {
+        if (SubgraphState.isInSync(endpointIndex, subgraphName, queryResult.version.chain)) {
+          if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
+            LoggingUtil.logSuccessfulProxy(subgraphName, endpointIndex, startTime, endpointHistory);
+            return queryResult;
+          }
+          // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
+          // another. Do not accept this response. A valid response is expected on the next attempt
+        } else {
           unsyncdEndpoints.push(endpointIndex);
-          continue;
         }
-
-        // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
-        // another. Do not accept this response.
-        if (queryResult._meta.block.number < SubgraphState.getLatestBlock(subgraphName)) {
-          continue;
-        }
-
-        LoggingUtil.logSuccessfulProxy(subgraphName, endpointIndex, startTime, endpointHistory);
-        return queryResult;
       }
     }
 
     LoggingUtil.logFailedProxy(subgraphName, startTime, endpointHistory);
     await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
+  }
+
+  // Updates persistent states upon a successful request
+  static async _updateStates(endpointIndex, subgraphName, queryResult, failedEndpoints) {
+    SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
+    SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
+    SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
+    SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
+    SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
+
+    // Query to this endpoint suceeded - any previous failures were not due to the user's query.
+    for (const failedIndex of failedEndpoints) {
+      SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
+    }
+  }
+
+  // Identifies whether the failure is due to response being behind an explicitly requested block.
+  // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
+  static _isFutureBlockException(e) {
+    const match = e.message.match(/block number (\d+) is therefore/);
+    if (match) {
+      const blockNumber = parseInt(match[1]);
+      const chain = SubgraphState.getEndpointChain(endpointIndex, subgraphName);
+      if (blockNumber > ChainState.getChainHead(chain) + 5) {
+        // User requested a future block. This is not allowed
+        throw new RequestError(`The requested block ${blockNumber} is invalid for chain ${chain}.`);
+      }
+      return true;
+    }
+    return false;
   }
 
   // Throws an exception based on the failure reason

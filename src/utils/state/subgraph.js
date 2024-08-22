@@ -75,20 +75,20 @@ class SubgraphState {
 
   // Derived functions
   static getLatestVersion(subgraphName) {
-    const versions = [];
+    let versions = [];
     for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(); ++i) {
       versions.push(this._endpointVersion[`${i}-${subgraphName}`]);
     }
-    versions.sort(SemVerUtil.compareVersions);
+    versions = versions.filter((v) => v !== undefined).sort(SemVerUtil.compareVersions);
     return versions[versions.length - 1];
   }
 
   static getLatestBlock(subgraphName) {
-    const blocks = [];
+    let blocks = [];
     for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(); ++i) {
       blocks.push(this._endpointBlock[`${i}-${subgraphName}`]);
     }
-    blocks.sort();
+    blocks = blocks.filter((v) => v !== undefined).sort();
     return blocks[blocks.length - 1];
   }
 
