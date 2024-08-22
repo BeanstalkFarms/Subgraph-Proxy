@@ -84,6 +84,7 @@ class SubgraphProxyService {
           // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
           // another. Do not accept this response. A valid response is expected on the next attempt
         } else {
+          // TODO: what should happen to the unsyncd endpoints if a subsequent request is success?
           unsyncdEndpoints.push(endpointIndex);
         }
       }
