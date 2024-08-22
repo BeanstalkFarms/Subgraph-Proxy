@@ -201,7 +201,55 @@ describe('Subgraph Proxy - Core', () => {
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
     });
-    test('User explicitly queries current block that is indexed but temporarily unavailable', async () => {});
-    test('Latest indexed block is temporarily unavailable', async () => {});
+    test('User explicitly queries current block that is indexed but temporarily unavailable', async () => {
+      // Request fails the first 2 times, and succeeds on the third
+      jest
+        .spyOn(SubgraphClients, 'makeCallableClient')
+        .mockImplementationOnce(() => async () => {
+          throw new Error(`block number ${responseBlock} is therefore not yet available`);
+        })
+        .mockImplementationOnce(() => async () => {
+          throw new Error(`block number ${responseBlock} is therefore not yet available`);
+        })
+        .mockReturnValueOnce(async () => beanResponse);
+
+      // Different logic here to prevent returning -1 on third invocation
+      jest
+        .spyOn(LoadBalanceUtil, 'chooseEndpoint')
+        .mockReset()
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 1, ...args))
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
+
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
+      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
+      expect(endpointArgCapture[1]).toEqual([[], [0]]);
+      expect(endpointArgCapture[2]).toEqual([[], [0, 1]]);
+    });
+    test('Latest indexed block is temporarily unavailable', async () => {
+      jest
+        .spyOn(LoadBalanceUtil, 'chooseEndpoint')
+        .mockReset()
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 1, ...args))
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
+
+      jest
+        .spyOn(SubgraphClients, 'makeCallableClient')
+        .mockReturnValueOnce(async () => beanResponse)
+        .mockReturnValueOnce(async () => beanBehindResponse)
+        .mockReturnValueOnce(async () => beanBehindResponse)
+        .mockReturnValueOnce(async () => beanResponse);
+      // Initial query that gets the latest block successfully
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
+      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
+
+      // Second query that fails to get the latest block on first 2 attempts
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
+      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
+      expect(endpointArgCapture[2]).toEqual([[], [0]]);
+      expect(endpointArgCapture[3]).toEqual([[], [0, 1]]);
+    });
   });
 });
