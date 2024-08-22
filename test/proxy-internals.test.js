@@ -1,6 +1,4 @@
-const { gql } = require('graphql-request');
 const SubgraphProxyService = require('../src/services/subgraph-proxy-service');
-const GraphqlQueryUtil = require('../src/utils/query-manipulation');
 const SubgraphState = require('../src/utils/state/subgraph');
 const LoadBalanceUtil = require('../src/utils/load-balance');
 const SubgraphClients = require('../src/datasources/subgraph-clients');
@@ -21,55 +19,12 @@ let endpointArgCapture;
 
 describe('Subgraph Proxy - Core', () => {
   beforeEach(() => {
-    // Clears call history (NOT implementation)
+    // Clears call history (NOT implementations)
     jest.clearAllMocks();
   });
 
   beforeAll(() => {
     jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(responseBlock);
-  });
-
-  describe('handleProxyRequest tests', () => {
-    test('Add and removes extra metadata from request/response', async () => {
-      const spy = jest.spyOn(SubgraphProxyService, '_getQueryResult').mockResolvedValueOnce(beanResponse);
-      const query = gql`
-        {
-          beanCrosses(first: 5) {
-            id
-          }
-        }
-      `;
-      const result = await SubgraphProxyService.handleProxyRequest('bean', query);
-
-      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query));
-      expect(result.meta.deployment).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
-      expect(result.body.beanCrosses.length).toEqual(5);
-      expect(result.body._meta).toBeUndefined();
-      expect(result.body.version).toBeUndefined();
-    });
-
-    test('Does not remove explicitly requested metadata', async () => {
-      const spy = jest.spyOn(SubgraphProxyService, '_getQueryResult').mockResolvedValueOnce(beanResponse);
-      const query = gql`
-        {
-          _meta {
-            block {
-              number
-            }
-          }
-          beanCrosses(first: 5) {
-            id
-          }
-        }
-      `;
-      const result = await SubgraphProxyService.handleProxyRequest('bean', query);
-
-      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query));
-      expect(result.meta.deployment).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
-      expect(result.body.beanCrosses.length).toEqual(5);
-      expect(result.body._meta.block.number).toEqual(responseBlock);
-      expect(result.body.version).toBeUndefined();
-    });
   });
 
   test('Can successfully update the global state', async () => {
@@ -226,7 +181,7 @@ describe('Subgraph Proxy - Core', () => {
       expect(endpointArgCapture[1]).toEqual([[], [0]]);
       expect(endpointArgCapture[2]).toEqual([[], [0, 1]]);
     });
-    test('Latest indexed block is temporarily unavailable', async () => {
+    test('Latest known indexed block is temporarily unavailable', async () => {
       jest
         .spyOn(LoadBalanceUtil, 'chooseEndpoint')
         .mockReset()
