@@ -10,6 +10,8 @@ const beanResponse = require('./mock-responses/bean.json');
 const beanBehindResponse = require('./mock-responses/beanBehind.json');
 const beanNewDeploymentResponse = require('./mock-responses/beanNewDeployment.json');
 const { captureAndReturn } = require('./utils/capture-args');
+const RequestError = require('../src/error/request-error');
+const EndpointError = require('../src/error/endpoint-error');
 const responseBlock = beanResponse._meta.block.number;
 const responseBehindBlock = beanBehindResponse._meta.block.number;
 const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
@@ -101,7 +103,9 @@ describe('Subgraph Proxy - Core', () => {
         .mockReset()
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 1, ...args))
+        .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, -1, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
+      jest.spyOn(SubgraphState, 'getLatestErrorCheck').mockReturnValue(undefined);
     });
 
     test('Initial endpoint succeeds', async () => {
@@ -125,8 +129,43 @@ describe('Subgraph Proxy - Core', () => {
       expect(endpointArgCapture[0]).toEqual([[], []]);
       expect(endpointArgCapture[1]).toEqual([[0], [0]]);
     });
-    test('Both endpoints fail - user error', async () => {});
-    test('Both endpoints fail - endpoint error', async () => {});
+    test('Both endpoints fail - user error', async () => {
+      jest
+        .spyOn(SubgraphClients, 'makeCallableClient')
+        .mockImplementationOnce(() => async () => {
+          throw new Error('Generic failure reason');
+        })
+        .mockImplementationOnce(() => async () => {
+          throw new Error('Generic failure reason');
+        })
+        // Both endpoints failed the user request but succeed the simple request
+        .mockReturnValueOnce(async () => beanResponse);
+
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
+      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
+      expect(endpointArgCapture[0]).toEqual([[], []]);
+      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
+      expect(endpointArgCapture[2]).toEqual([
+        [0, 1],
+        [0, 1]
+      ]);
+      expect(endpointArgCapture[3]).toEqual([]);
+    });
+    test('Both endpoints fail - endpoint error', async () => {
+      jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementation(() => async () => {
+        throw new Error('Generic failure reason');
+      }); // This implementation will be used 3 times, all are failure
+
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(EndpointError);
+      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
+      expect(endpointArgCapture[0]).toEqual([[], []]);
+      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
+      expect(endpointArgCapture[2]).toEqual([
+        [0, 1],
+        [0, 1]
+      ]);
+      expect(endpointArgCapture[3]).toEqual([]);
+    });
     test('One endpoint is out of sync', async () => {});
     test('Both endpoints are out of sync', async () => {});
 
