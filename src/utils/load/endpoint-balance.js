@@ -1,15 +1,6 @@
-// Add logic to support this:
-// If alchemy is <90% utilized, the request should go there.
-// Otherwise go to the graph
-// If both are >90% utilized, pari passu
-
-const { EnvUtil } = require('../env');
-const ChainState = require('../state/chain');
+const { EnvUtil, ENDPOINT_UTILIZATION_PREFERENCE } = require('../env');
 const SubgraphState = require('../state/subgraph');
 const BottleneckLimiters = require('./bottleneck-limiters');
-
-// In the case of a crash: if it can identify that the subgraph has crashed, it should not query it again for 5 minutes
-// Something similar can be done if a stale deployment version is encountered
 
 class EndpointBalanceUtil {
   /**
@@ -88,6 +79,14 @@ class EndpointBalanceUtil {
         }
 
         // Choose according to utilization
+        if (
+          currentUtilization[a] < ENDPOINT_UTILIZATION_PREFERENCE[a] &&
+          currentUtilization[b] < ENDPOINT_UTILIZATION_PREFERENCE[b]
+        ) {
+          // Neither are exceeding the preference, use the preferred/lower index endpoint
+          return a - b;
+        }
+        // At least one exceeds the preference, choose the lower of the two
         if (currentUtilization[a] !== currentUtilization[b]) {
           return currentUtilization[a] - currentUtilization[b];
         }
@@ -107,6 +106,8 @@ class EndpointBalanceUtil {
     return utilization;
   }
 
+  // A "troublesome endpoint" is defined as an endpoint which is known in the last minute to: (1) have errors,
+  // (2) be out of sync/singificantly behind in indexing, or (3) not running the latest subgraph version
   static _getTroublesomeEndpoints(endpointsIndices, subgraphName) {
     const now = new Date();
     const troublesomeEndpoints = [];
