@@ -43,7 +43,7 @@ class SubgraphProxyService {
 
     let endpointIndex;
     while (
-      (endpointIndex = EndpointBalanceUtil.chooseEndpoint(
+      (endpointIndex = await EndpointBalanceUtil.chooseEndpoint(
         subgraphName,
         [...failedEndpoints, ...unsyncdEndpoints],
         endpointHistory
@@ -134,7 +134,7 @@ class SubgraphProxyService {
       try {
         SubgraphState.setLatestSubgraphErrorCheck(subgraphName);
         const client = await SubgraphClients.makeCallableClient(
-          EndpointBalanceUtil.chooseEndpoint(subgraphName),
+          await EndpointBalanceUtil.chooseEndpoint(subgraphName),
           subgraphName
         );
         await client(gql`

@@ -23,8 +23,8 @@ class LoggingUtil {
 
   static async getUtilizationString(subgraphName) {
     let utilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
-    utilization = utilization.map((v, idx) => `e-${idx}:${(v * 100).toFixed(0)}%`);
-    return utilization.join(',');
+    const strings = Object.keys(utilization).map((key) => `e-${key}:${(utilization[key] * 100).toFixed(0)}%`);
+    return strings.join(',');
   }
 }
 

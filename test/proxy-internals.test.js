@@ -1,6 +1,6 @@
 const SubgraphProxyService = require('../src/services/subgraph-proxy-service');
 const SubgraphState = require('../src/utils/state/subgraph');
-const LoadBalanceUtil = require('../src/utils/load/endpoint-balance');
+const EndpointBalanceUtil = require('../src/utils/load/endpoint-balance');
 const SubgraphClients = require('../src/datasources/subgraph-clients');
 const ChainState = require('../src/utils/state/chain');
 const RequestError = require('../src/error/request-error');
@@ -15,7 +15,7 @@ const responseBlock = beanResponse._meta.block.number;
 const responseBehindBlock = beanBehindResponse._meta.block.number;
 const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
 
-// For capturing arguments to LoadBalanceUtil.chooseEndpoint
+// For capturing arguments to EndpointBalanceUtil.chooseEndpoint
 let endpointArgCapture;
 
 describe('Subgraph Proxy - Core', () => {
@@ -55,7 +55,7 @@ describe('Subgraph Proxy - Core', () => {
     beforeEach(() => {
       endpointArgCapture = [];
       jest
-        .spyOn(LoadBalanceUtil, 'chooseEndpoint')
+        .spyOn(EndpointBalanceUtil, 'chooseEndpoint')
         .mockReset()
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 1, ...args))
@@ -68,7 +68,7 @@ describe('Subgraph Proxy - Core', () => {
       jest.spyOn(SubgraphClients, 'makeCallableClient').mockResolvedValueOnce(async () => beanResponse);
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
       expect(endpointArgCapture[0]).toEqual(['bean', [], []]);
     });
     test('Second endpoint succeeds', async () => {
@@ -81,7 +81,7 @@ describe('Subgraph Proxy - Core', () => {
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(2);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(2);
       expect(endpointArgCapture[0]).toEqual(['bean', [], []]);
       expect(endpointArgCapture[1]).toEqual(['bean', [0], [0]]);
     });
@@ -98,7 +98,7 @@ describe('Subgraph Proxy - Core', () => {
         .mockResolvedValueOnce(async () => beanResponse);
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
       expect(endpointArgCapture[0]).toEqual(['bean', [], []]);
       expect(endpointArgCapture[1]).toEqual(['bean', [0], [0]]);
       expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1]]);
@@ -110,7 +110,7 @@ describe('Subgraph Proxy - Core', () => {
       }); // This implementation will be used 3 times, all are failure
 
       await expect(SubgraphProxyService._getQueryResult('beanstalk', 'graphql query')).rejects.toThrow(EndpointError);
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
       expect(endpointArgCapture[0]).toEqual(['beanstalk', [], []]);
       expect(endpointArgCapture[1]).toEqual(['beanstalk', [0], [0]]);
       expect(endpointArgCapture[2]).toEqual(['beanstalk', [0, 1], [0, 1]]);
@@ -124,7 +124,7 @@ describe('Subgraph Proxy - Core', () => {
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(2);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(2);
       expect(endpointArgCapture[1]).toEqual(['bean', [0], [0]]);
     });
     test('Both endpoints are out of sync', async () => {
@@ -135,7 +135,7 @@ describe('Subgraph Proxy - Core', () => {
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(EndpointError);
 
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
       expect(endpointArgCapture[1]).toEqual(['bean', [0], [0]]);
       expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1]]);
     });
@@ -146,7 +146,7 @@ describe('Subgraph Proxy - Core', () => {
       });
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
     });
     test('User explicitly queries current block that is indexed but temporarily unavailable', async () => {
       // Request fails the first 2 times, and succeeds on the third
@@ -162,20 +162,20 @@ describe('Subgraph Proxy - Core', () => {
 
       // Different logic here to prevent returning -1 on third invocation
       jest
-        .spyOn(LoadBalanceUtil, 'chooseEndpoint')
+        .spyOn(EndpointBalanceUtil, 'chooseEndpoint')
         .mockReset()
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 1, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
       expect(endpointArgCapture[1]).toEqual(['bean', [], [0]]);
       expect(endpointArgCapture[2]).toEqual(['bean', [], [0, 1]]);
     });
     test('Latest known indexed block is temporarily unavailable', async () => {
       jest
-        .spyOn(LoadBalanceUtil, 'chooseEndpoint')
+        .spyOn(EndpointBalanceUtil, 'chooseEndpoint')
         .mockReset()
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
@@ -190,11 +190,11 @@ describe('Subgraph Proxy - Core', () => {
         .mockResolvedValueOnce(async () => beanResponse);
       // Initial query that gets the latest block successfully
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
 
       // Second query that fails to get the latest block on first 2 attempts
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
-      expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
       expect(endpointArgCapture[2]).toEqual(['bean', [], [0]]);
       expect(endpointArgCapture[3]).toEqual(['bean', [], [0, 1]]);
     });
@@ -202,7 +202,7 @@ describe('Subgraph Proxy - Core', () => {
 
   test('No endpoints are available', async () => {
     // The initial request is rejected, no endpoints are available to service this request
-    jest.spyOn(LoadBalanceUtil, 'chooseEndpoint').mockReturnValueOnce(-1);
+    jest.spyOn(EndpointBalanceUtil, 'chooseEndpoint').mockReturnValueOnce(-1);
 
     await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RateLimitError);
   });
