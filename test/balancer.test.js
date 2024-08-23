@@ -11,6 +11,7 @@ jest.mock('../src/utils/env', () => ({
 const { EnvUtil } = require('../src/utils/env');
 
 jest.mock('../src/utils/load/bottleneck-limiters', () => ({
+  isBurstDepleted: jest.fn(),
   getUtilization: jest.fn()
 }));
 const BottleneckLimiters = require('../src/utils/load/bottleneck-limiters');
@@ -69,6 +70,7 @@ describe('Endpoint Balancer', () => {
     jest.spyOn(SubgraphState, 'getLatestVersion').mockReturnValue('1.0.0');
 
     // Current utilization
+    jest.spyOn(BottleneckLimiters, 'isBurstDepleted').mockReturnValue(false);
     jest.spyOn(BottleneckLimiters, 'getUtilization').mockImplementation((endpointIndex) => {
       return endpointIndex === 0 ? 0.2 : 0.2;
     });
@@ -234,10 +236,12 @@ describe('Endpoint Balancer', () => {
       expect(EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
     });
     test('No endpoint can be chosen', async () => {
-      jest.spyOn(EndpointBalanceUtil, 'getSubgraphUtilization').mockResolvedValue([10, 10]);
+      jest.spyOn(BottleneckLimiters, 'isBurstDepleted').mockReturnValue(true);
       expect(EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(-1);
 
-      jest.spyOn(EndpointBalanceUtil, 'getSubgraphUtilization').mockResolvedValue([10, 0.3]);
+      jest.spyOn(BottleneckLimiters, 'isBurstDepleted').mockImplementation((endpointIndex) => {
+        return endpointIndex === 0;
+      });
       expect(EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       expect(EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(-1);
     });

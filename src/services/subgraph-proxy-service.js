@@ -4,26 +4,11 @@ const EndpointBalanceUtil = require('../utils/load/endpoint-balance');
 const GraphqlQueryUtil = require('../utils/query-manipulation');
 const EndpointError = require('../error/endpoint-error');
 const RequestError = require('../error/request-error');
+const RateLimitError = require('../error/rate-limit-error');
 const SubgraphState = require('../utils/state/subgraph');
 const ChainState = require('../utils/state/chain');
 const LoggingUtil = require('../utils/logging');
 const { EnvUtil } = require('../utils/env');
-const RateLimitError = require('../error/rate-limit-error');
-require('../datasources/subgraph-clients');
-
-const alchemyConfig = {
-  id: 'alchemy-subgraphs',
-  requestsPerInterval: 30,
-  maxBuffer: 300,
-  interval: 1000
-};
-
-const graphConfig = {
-  id: 'graph-subgraphs',
-  requestsPerInterval: 80,
-  maxBuffer: 800,
-  interval: 1000
-};
 
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
