@@ -46,6 +46,10 @@ class SubgraphState {
   }
   static setEndpointVersion(endpointIndex, subgraphName, version) {
     this._endpointVersion[`${endpointIndex}-${subgraphName}`] = version;
+    if (SemVerUtil.compareVersions(version, this.getLatestVersion(subgraphName)) === -1) {
+      // Update timestamp
+      this.setLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName);
+    }
   }
 
   static getEndpointChain(endpointIndex, subgraphName) {
@@ -58,10 +62,14 @@ class SubgraphState {
   static getEndpointBlock(endpointIndex, subgraphName) {
     return this._endpointBlock[`${endpointIndex}-${subgraphName}`];
   }
-  static setEndpointBlock(endpointIndex, subgraphName, blockNumber) {
+  static async setEndpointBlock(endpointIndex, subgraphName, blockNumber) {
     // Block number cannot decrease unless redeploy/error
     if (blockNumber > (this._endpointBlock[`${endpointIndex}-${subgraphName}`] ?? 0)) {
       this._endpointBlock[`${endpointIndex}-${subgraphName}`] = blockNumber;
+    }
+    if (!(await this.isInSync(endpointIndex, subgraphName))) {
+      // Update timestamp
+      this.setLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName);
     }
   }
 
@@ -72,6 +80,8 @@ class SubgraphState {
     if (value) {
       // Resets block number on an error
       this._endpointBlock[`${endpointIndex}-${subgraphName}`] = 0;
+      // Update timestamp
+      this.setLastEndpointErrorTimestamp(endpointIndex, subgraphName);
     }
     this._endpointHasErrors[`${endpointIndex}-${subgraphName}`] = value;
   }
@@ -121,7 +131,8 @@ class SubgraphState {
   }
 
   // Not a perfect assumption - the endpoint is considered in sync if it is within 50 blocks of the chain head.
-  static async isInSync(endpointIndex, subgraphName, chain) {
+  static async isInSync(endpointIndex, subgraphName) {
+    const chain = this.getEndpointChain(endpointIndex, subgraphName);
     return this.getEndpointBlock(endpointIndex, subgraphName) + 50 > (await ChainState.getChainHead(chain));
   }
 
