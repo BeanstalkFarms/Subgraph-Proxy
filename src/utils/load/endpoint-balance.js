@@ -4,6 +4,7 @@
 // If both are >90% utilized, pari passu
 
 const { EnvUtil } = require('../env');
+const ChainState = require('../state/chain');
 const SubgraphState = require('../state/subgraph');
 const BottleneckLimiters = require('./bottleneck-limiters');
 
@@ -21,7 +22,8 @@ class EndpointBalanceUtil {
    * 3. If there are no options, re-consider whatever was removed in step (2)
    * 4. If there are still multiple to choose from:
    *  a. do not prefer according to (b) or (c) if >100% utilization for the endpoint they would choose
-   *  b. if an endpoint is in history but not blacklist, prefer that one again if its block >= the chain head
+   *  b. if an endpoint is most recent in history but not blacklist, prefer that one again if
+   *     its block >= the latest known indexed block for that subgraph.
    *  c. if both have a result within the last second, prefer one having a later block
    *  d. prefer according to utilization
    * @param {string} subgraphName
@@ -55,6 +57,43 @@ class EndpointBalanceUtil {
 
     if (options.length > 1) {
       const currentUtilization = await this.getSubgraphUtilization(subgraphName);
+      const latestIndexedBlock = SubgraphState.getLatestBlock(subgraphName);
+      const sortLogic = (a, b) => {
+        const retryLast = (a) => {
+          return (
+            history[history.length - 1] === a &&
+            SubgraphState.getEndpointBlock(a) >= latestIndexedBlock &&
+            currentUtilization[a] < 1
+          );
+        };
+        // Retry previous request to the same endpoint if it didnt fail previously and is fully indexed
+        if (retryLast(a)) {
+          return -1;
+        } else if (retryLast(b)) {
+          return 1;
+        }
+
+        // Use endpoint with later results if neither results are stale
+        const lastA = SubgraphState.getLastEndpointUsageTimestamp(a, subgraphName);
+        const lastB = SubgraphState.getLastEndpointUsageTimestamp(b, subgraphName);
+        if (Math.abs(lastA - lastB) < 1000) {
+          const useLaterBlock = (a, b) => {
+            return SubgraphState.getEndpointBlock(a) > SubgraphState.getEndpointBlock(b) && currentUtilization[a] < 1;
+          };
+          if (useLaterBlock(a, b)) {
+            return -1;
+          } else if (useLaterBlock(b, a)) {
+            return 1;
+          }
+        }
+
+        // Choose according to utilization
+        if (currentUtilization[a] !== currentUtilization[b]) {
+          return currentUtilization[a] - currentUtilization[b];
+        }
+        return a - b;
+      };
+      options.sort(sortLogic);
     }
     return options[0];
   }

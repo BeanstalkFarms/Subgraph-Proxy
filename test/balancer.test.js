@@ -16,19 +16,10 @@ jest.mock('../src/utils/load/bottleneck-limiters', () => ({
 }));
 const BottleneckLimiters = require('../src/utils/load/bottleneck-limiters');
 
-// Strategy
-// 1. If in blacklist or isBurstDepleted, avoid outright
-// 2. If the subgraph has errors, is out of sync, or is not on the latest version,
-//    avoid unless some time has passed since last result
-// 3. If there are no options, re-consider whatever was removed in step (2)
-// 4. If there are still multiple to choose from:
-//  a. do not prefer according to (b) or (c) if >100% utilization for the endpoint they would choose
-//  b. if an endpoint is in history but not blacklist, prefer that one again if its block >= the chain head
-//  c. if both have a result within the last second, prefer one having a later block
-//  d. prefer according to utilization
-
 const fakeTimeNow = new Date(1700938811 * 1000);
 const fakeTimePrev = new Date(1680938811 * 1000);
+
+/** Tests according to the strategy description on EndpointBalanceUtil.chooseEndpoint method. **/
 
 const mockEndpointErrors = (idx) => {
   jest.spyOn(SubgraphState, 'endpointHasErrors').mockImplementation((endpointIndex, _) => {
@@ -68,6 +59,8 @@ describe('Endpoint Balancer', () => {
     jest.spyOn(SubgraphState, 'isInSync').mockReturnValue(true);
     jest.spyOn(SubgraphState, 'getEndpointVersion').mockReturnValue('1.0.0');
     jest.spyOn(SubgraphState, 'getLatestVersion').mockReturnValue('1.0.0');
+    jest.spyOn(SubgraphState, 'getEndpointBlock').mockReturnValue(500);
+    jest.spyOn(SubgraphState, 'getLatestBlock').mockReturnValue(500);
 
     // Current utilization
     jest.spyOn(BottleneckLimiters, 'isBurstDepleted').mockReturnValue(false);
