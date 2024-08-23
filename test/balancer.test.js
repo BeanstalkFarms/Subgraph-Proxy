@@ -1,5 +1,6 @@
 const { EnvUtil } = require('../src/utils/env');
 const EndpointBalanceUtil = require('../src/utils/load/endpoint-balance');
+const ChainState = require('../src/utils/state/chain');
 const SubgraphState = require('../src/utils/state/subgraph');
 
 // Strategy
@@ -13,12 +14,16 @@ const SubgraphState = require('../src/utils/state/subgraph');
 //  d. prefer according to utilization
 // 4. If none could be selected, revisit step (3) with any that were removed in step (2)
 
+const fakeTimeNow = new Date(1700938811 * 1000);
+const fakeTimePrev = new Date(1680938811 * 1000);
+
 describe('Endpoint Balancer', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(EnvUtil, 'endpointsForSubgraph').mockReturnValue([0, 1]);
     // TODO: configure utilization
 
+    jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(500);
     jest.spyOn(SubgraphState, 'endpointHasErrors').mockReturnValue(false);
     jest.spyOn(SubgraphState, 'isInSync').mockReturnValue(true);
     jest.spyOn(SubgraphState, 'getEndpointVersion').mockReturnValue('1.0.0');
@@ -41,16 +46,59 @@ describe('Endpoint Balancer', () => {
     expect(EndpointBalanceUtil.chooseEndpoint('bean', blacklist)).toEqual(-1);
   });
 
-  test('Endpoints with errors are not selected unless time elapsed', async () => {
-    // WIP
-    const choice1 = EndpointBalanceUtil.chooseEndpoint('bean', []);
-    expect(choice1).toEqual(1);
+  describe('Prefers to avoid troublesome endpoints', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(fakeTimeNow);
+    });
 
-    const choice2 = EndpointBalanceUtil.chooseEndpoint('bean', []);
-    expect(choice2).toEqual(0);
+    test('Endpoints with errors are not selected unless time elapsed', async () => {
+      jest.spyOn(SubgraphState, 'endpointHasErrors').mockImplementation((endpointIndex, subgraphName) => {
+        return endpointIndex === 0;
+      });
+      jest.spyOn(SubgraphState, 'getLastEndpointErrorTimestamp').mockImplementation((endpointIndex, subgraphName) => {
+        return endpointIndex === 0 ? fakeTimeNow : undefined;
+      });
+      const choice1 = EndpointBalanceUtil.chooseEndpoint('bean', []);
+      expect(choice1).toEqual(1);
+
+      jest.setSystemTime(fakeTimePrev);
+      const choice2 = EndpointBalanceUtil.chooseEndpoint('bean', []);
+      expect(choice2).toEqual(0);
+    });
+    test('Endpoints out of sync are not selected unless time elapsed', async () => {
+      jest.spyOn(SubgraphState, 'isInSync').mockImplementation((endpointIndex, subgraphName) => {
+        return endpointIndex !== 0;
+      });
+      jest
+        .spyOn(SubgraphState, 'getLastEndpointOutOfSyncTimestamp')
+        .mockImplementation((endpointIndex, subgraphName) => {
+          return endpointIndex === 0 ? fakeTimeNow : undefined;
+        });
+      const choice1 = EndpointBalanceUtil.chooseEndpoint('bean', []);
+      expect(choice1).toEqual(1);
+
+      jest.setSystemTime(fakeTimePrev);
+      const choice2 = EndpointBalanceUtil.chooseEndpoint('bean', []);
+      expect(choice2).toEqual(0);
+    });
+    test('Endpoints on older version are not selected unless time elapsed', async () => {
+      jest.spyOn(SubgraphState, 'isStaleVersion').mockImplementation((endpointIndex, subgraphName) => {
+        return endpointIndex === 0;
+      });
+      jest
+        .spyOn(SubgraphState, 'getLastEndpointStaleVersionTimestamp')
+        .mockImplementation((endpointIndex, subgraphName) => {
+          return endpointIndex === 0 ? fakeTimeNow : undefined;
+        });
+      const choice1 = EndpointBalanceUtil.chooseEndpoint('bean', []);
+      expect(choice1).toEqual(1);
+
+      jest.setSystemTime(fakeTimePrev);
+      const choice2 = EndpointBalanceUtil.chooseEndpoint('bean', []);
+      expect(choice2).toEqual(0);
+    });
   });
-  test('Endpoints out of sync are not selected unless time elapsed', async () => {});
-  test('Endpoints on older version are not selected unless time elapsed', async () => {});
 
   test('<100% utilized: Underutilized endpoint is chosen', async () => {});
   test('<100% utilized: Endpoint is not selected due to exceeding utilization preference cap', async () => {});
