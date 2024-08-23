@@ -2,8 +2,8 @@ const { EnvUtil } = require('../src/utils/env');
 const ChainState = require('../src/utils/state/chain');
 const SubgraphState = require('../src/utils/state/subgraph');
 
-const fakeTime1 = new Date(1700938811 * 1000);
-const fakeTime2 = new Date(1750938811 * 1000);
+const mockTimeNow = new Date(1700938811 * 1000);
+const mockTimeFuture = new Date(1750938811 * 1000);
 
 describe('State: Derived functions', () => {
   beforeAll(() => {
@@ -57,36 +57,36 @@ describe('State: Derived functions', () => {
   describe('Timestamps', () => {
     beforeEach(() => {
       jest.useFakeTimers();
-      jest.setSystemTime(fakeTime1);
+      jest.setSystemTime(mockTimeNow);
     });
 
     test('Can set endpoint timestamps', () => {
       SubgraphState.setLastEndpointStaleVersionTimestamp(0, 'bean');
-      expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(fakeTime1);
+      expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(mockTimeNow);
 
-      jest.setSystemTime(fakeTime2);
+      jest.setSystemTime(mockTimeFuture);
 
       SubgraphState.setLastEndpointOutOfSyncTimestamp(0, 'bean');
-      expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(fakeTime1);
-      expect(SubgraphState.getLastEndpointOutOfSyncTimestamp(0, 'bean')).toEqual(fakeTime2);
+      expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(mockTimeNow);
+      expect(SubgraphState.getLastEndpointOutOfSyncTimestamp(0, 'bean')).toEqual(mockTimeFuture);
     });
     test('Endpoint timestamps get set under appropriate circumstances', async () => {
       expect(SubgraphState.getLastEndpointUsageTimestamp(0, 'bean')).toBeUndefined();
       SubgraphState.setLastEndpointUsageTimestamp(0, 'bean');
-      expect(SubgraphState.getLastEndpointUsageTimestamp(0, 'bean')).toEqual(fakeTime1);
+      expect(SubgraphState.getLastEndpointUsageTimestamp(0, 'bean')).toEqual(mockTimeNow);
 
       expect(SubgraphState.getLastEndpointErrorTimestamp(0, 'bean')).toBeUndefined();
       SubgraphState.setEndpointHasErrors(0, 'bean', true);
-      expect(SubgraphState.getLastEndpointErrorTimestamp(0, 'bean')).toEqual(fakeTime1);
+      expect(SubgraphState.getLastEndpointErrorTimestamp(0, 'bean')).toEqual(mockTimeNow);
 
       expect(SubgraphState.getLastEndpointOutOfSyncTimestamp(0, 'bean')).toBeUndefined();
       await SubgraphState.setEndpointBlock(0, 'bean', 15);
-      expect(SubgraphState.getLastEndpointOutOfSyncTimestamp(0, 'bean')).toEqual(fakeTime1);
+      expect(SubgraphState.getLastEndpointOutOfSyncTimestamp(0, 'bean')).toEqual(mockTimeNow);
 
       expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toBeUndefined();
       SubgraphState.setEndpointVersion(1, 'bean', '1.0.0');
       SubgraphState.setEndpointVersion(0, 'bean', '0.9.5');
-      expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(fakeTime1);
+      expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(mockTimeNow);
     });
   });
 });

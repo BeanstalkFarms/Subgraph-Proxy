@@ -113,9 +113,12 @@ class EndpointBalanceUtil {
     const troublesomeEndpoints = [];
     for (const endpointIndex of endpointsIndices) {
       if (
-        now - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < 60 * 1000 ||
-        now - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < 60 * 1000 ||
-        now - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < 60 * 1000
+        (SubgraphState.endpointHasErrors(endpointIndex, subgraphName) &&
+          now - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
+        (!SubgraphState.isInSync(endpointIndex, subgraphName) &&
+          now - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
+        (SubgraphState.isStaleVersion(endpointIndex, subgraphName) &&
+          now - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < 60 * 1000)
       ) {
         troublesomeEndpoints.push(endpointIndex);
       }

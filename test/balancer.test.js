@@ -16,8 +16,9 @@ jest.mock('../src/utils/load/bottleneck-limiters', () => ({
 }));
 const BottleneckLimiters = require('../src/utils/load/bottleneck-limiters');
 
-const fakeTimeNow = new Date(1700938811 * 1000);
-const fakeTimePrev = new Date(1680938811 * 1000);
+const mockTimeNow = new Date(1700938811 * 1000);
+const mockTimePrev = new Date(1680938811 * 1000);
+const mockTimeFuture = new Date(1710938811 * 1000);
 
 /** Tests according to the strategy description on EndpointBalanceUtil.chooseEndpoint method. **/
 
@@ -26,7 +27,7 @@ const mockEndpointErrors = (idx) => {
     return endpointIndex === idx;
   });
   jest.spyOn(SubgraphState, 'getLastEndpointErrorTimestamp').mockImplementation((endpointIndex, _) => {
-    return endpointIndex === idx ? fakeTimeNow : undefined;
+    return endpointIndex === idx ? mockTimeNow : undefined;
   });
 };
 
@@ -35,7 +36,7 @@ const mockEndpointOutOfSync = (idx) => {
     return endpointIndex !== idx;
   });
   jest.spyOn(SubgraphState, 'getLastEndpointOutOfSyncTimestamp').mockImplementation((endpointIndex, _) => {
-    return endpointIndex === idx ? fakeTimeNow : undefined;
+    return endpointIndex === idx ? mockTimeNow : undefined;
   });
 };
 
@@ -44,7 +45,7 @@ const mockEndpointOnStaleVersion = (idx) => {
     return endpointIndex === idx;
   });
   jest.spyOn(SubgraphState, 'getLastEndpointStaleVersionTimestamp').mockImplementation((endpointIndex, _) => {
-    return endpointIndex === idx ? fakeTimeNow : undefined;
+    return endpointIndex === idx ? mockTimeNow : undefined;
   });
 };
 
@@ -64,9 +65,10 @@ describe('Endpoint Balancer', () => {
 
     // Current utilization
     jest.spyOn(BottleneckLimiters, 'isBurstDepleted').mockReturnValue(false);
-    jest.spyOn(BottleneckLimiters, 'getUtilization').mockImplementation((endpointIndex) => {
-      return endpointIndex === 0 ? 0.2 : 0.2;
-    });
+    jest.spyOn(BottleneckLimiters, 'getUtilization').mockReturnValue(0.2);
+
+    jest.useFakeTimers();
+    jest.setSystemTime(mockTimeNow);
   });
 
   test('Blacklisted endpoints are not selected', async () => {
@@ -86,17 +88,12 @@ describe('Endpoint Balancer', () => {
   });
 
   describe('Prefers to avoid troublesome endpoints', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-      jest.setSystemTime(fakeTimeNow);
-    });
-
     test('Endpoints with errors are not selected unless time elapsed', async () => {
       mockEndpointErrors(0);
       const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice1).toEqual(1);
 
-      jest.setSystemTime(fakeTimePrev);
+      jest.setSystemTime(mockTimeFuture);
       const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice2).toEqual(0);
     });
@@ -105,7 +102,7 @@ describe('Endpoint Balancer', () => {
       const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice1).toEqual(1);
 
-      jest.setSystemTime(fakeTimePrev);
+      jest.setSystemTime(mockTimeFuture);
       const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice2).toEqual(0);
     });
@@ -114,7 +111,7 @@ describe('Endpoint Balancer', () => {
       const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice1).toEqual(1);
 
-      jest.setSystemTime(fakeTimePrev);
+      jest.setSystemTime(mockTimeFuture);
       const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice2).toEqual(0);
     });
@@ -153,7 +150,7 @@ describe('Endpoint Balancer', () => {
       jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
         return endpointIndex === 0 ? 499 : 500;
       });
-      jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockReturnValue(fakeTimeNow);
+      jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockReturnValue(mockTimeNow);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
 
@@ -179,7 +176,7 @@ describe('Endpoint Balancer', () => {
         return endpointIndex === 0 ? 499 : 500;
       });
       jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockImplementation((endpointIndex, _) => {
-        return endpointIndex === 0 ? fakeTimeNow : fakeTimePrev;
+        return endpointIndex === 0 ? mockTimeNow : mockTimePrev;
       });
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(0);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
