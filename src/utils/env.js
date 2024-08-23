@@ -4,8 +4,12 @@ require('dotenv').config();
 
 // Need to replace "<sg>" with the name/id of the subgraph to use
 const ENDPOINTS = process.env.ENDPOINTS?.split('|');
-const ENDPOINT_RATE_LIMITS = process.env.ENDPOINT_RATE_LIMITS?.split('|').map((sg) => sg.split(','));
-const ENDPOINT_UTILIZATION_PREFERENCE = process.env.ENDPOINT_UTILIZATION_PREFERENCE?.split('|');
+const ENDPOINT_RATE_LIMITS = process.env.ENDPOINT_RATE_LIMITS?.split('|').map((sg) =>
+  sg.split(',').map((s) => parseInt(s))
+);
+const ENDPOINT_UTILIZATION_PREFERENCE = process.env.ENDPOINT_UTILIZATION_PREFERENCE?.split('|').map((s) =>
+  parseFloat(s)
+);
 const ENABLED_SUBGRAPHS = process.env.ENABLED_SUBGRAPHS?.split(',');
 const ENDPOINT_SG_IDS = process.env.ENDPOINT_SG_IDS?.split('|').map((sg) => sg.split(','));
 
@@ -20,8 +24,8 @@ if (ENDPOINTS.length !== ENDPOINT_RATE_LIMITS.length || ENDPOINTS.length !== END
   throw new Error('Invalid environment configured: endpoin configuration incomplete');
 }
 
-if (ENDPOINT_UTILIZATION_PREFERENCE.some((p) => p.length !== 3)) {
-  throw new Error('Invalid environment configured: utilization missing required input');
+if (ENDPOINT_UTILIZATION_PREFERENCE.some((u) => u < 0 || u > 1)) {
+  throw new Error('Invalid environment configured: utilization out of range');
 }
 
 function throwOnInvalidName(subgraphName) {

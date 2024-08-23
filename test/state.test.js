@@ -1,4 +1,4 @@
-const LoadBalanceUtil = require('../src/utils/load-balance');
+const LoadBalanceUtil = require('../src/utils/load/endpoint-balance');
 const ChainState = require('../src/utils/state/chain');
 const SubgraphState = require('../src/utils/state/subgraph');
 

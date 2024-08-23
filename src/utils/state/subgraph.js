@@ -1,4 +1,4 @@
-const LoadBalanceUtil = require('../load-balance');
+const LoadBalanceUtil = require('../load/endpoint-balance');
 const SemVerUtil = require('../semver');
 const ChainState = require('./chain');
 

@@ -1,4 +1,4 @@
-const { ENDPOINTS } = require('./env');
+const { ENDPOINTS } = require('../env');
 
 // Add logic to support this:
 // If alchemy is <90% utilized, the request should go there.
@@ -8,7 +8,7 @@ const { ENDPOINTS } = require('./env');
 // In the case of a crash: if it can identify that the subgraph has crashed, it should not query it again for 5 minutes
 // Something similar can be done if a stale deployment version is encountered
 
-class LoadBalanceUtil {
+class EndpointBalanceUtil {
   /**
    * Chooses which endpoint to use for an outgoing request. Prefers the latest version by default, and then
    * selects according to the .env utilization and rate limiting configuration.
@@ -34,4 +34,4 @@ class LoadBalanceUtil {
   }
 }
 
-module.exports = LoadBalanceUtil;
+module.exports = EndpointBalanceUtil;

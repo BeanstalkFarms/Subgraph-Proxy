@@ -1,6 +1,6 @@
 const SubgraphProxyService = require('../src/services/subgraph-proxy-service');
 const SubgraphState = require('../src/utils/state/subgraph');
-const LoadBalanceUtil = require('../src/utils/load-balance');
+const LoadBalanceUtil = require('../src/utils/load/endpoint-balance');
 const SubgraphClients = require('../src/datasources/subgraph-clients');
 const ChainState = require('../src/utils/state/chain');
 const RequestError = require('../src/error/request-error');

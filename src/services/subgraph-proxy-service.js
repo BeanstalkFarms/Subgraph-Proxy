@@ -1,6 +1,6 @@
 const { gql } = require('graphql-request');
 const SubgraphClients = require('../datasources/subgraph-clients');
-const LoadBalanceUtil = require('../utils/load-balance');
+const LoadBalanceUtil = require('../utils/load/endpoint-balance');
 const GraphqlQueryUtil = require('../utils/query-manipulation');
 const EndpointError = require('../error/endpoint-error');
 const RequestError = require('../error/request-error');

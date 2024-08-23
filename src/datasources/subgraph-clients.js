@@ -1,5 +1,6 @@
 const { GraphQLClient } = require('graphql-request');
 const { ENDPOINTS, ENDPOINT_SG_IDS, ENABLED_SUBGRAPHS } = require('../utils/env');
+const BottleneckLimiters = require('../utils/load/bottleneck-limiters');
 
 class SubgraphClients {
   // Stores the clients, key format endpointIndex-subgraphIndex (based on the ordering in .env)
@@ -21,11 +22,13 @@ class SubgraphClients {
       throw new Error(`Unsupported subgraph: ${subgraphName}`);
     }
 
-    return async (query) => {
+    const callableClient = async (query) => {
       const client = this.getClient(endpointIndex, subgraphIndex);
       const response = await client.request(query);
       return response;
     };
+    const limiterWrapped = BottleneckLimiters.getLimiter(endpointIndex).wrap(callableClient);
+    return limiterWrapped;
   }
 }
 
