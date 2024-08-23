@@ -25,7 +25,7 @@ class EndpointBalanceUtil {
     // Strategy
     // 1. If in blacklist or isBurstDepleted, avoid outright
     // 2. If the subgraph has errors, is out of sync, or is not on the latest version,
-    //    avoid unless some time has passed since last result,
+    //    avoid unless some time has passed since last result
     // 3. If there are still multiple to choose from:
     //  a. do not prefer according to (b) or (c) if >100% utilization for the endpoint they would choose
     //  b. if an endpoint is in history but not blacklist, prefer that one again if its block >= the chain head

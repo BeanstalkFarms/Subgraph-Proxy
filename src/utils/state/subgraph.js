@@ -5,7 +5,7 @@ const ChainState = require('./chain');
 class SubgraphState {
   /// Key is subgraphName
   // Latest timestamp of when an error check was performed for subgraphName
-  static _latestErrorCheck = {};
+  static _latestSubgraphErrorCheck = {};
 
   /// Key for these is endpointIndex-subgraphName.
   // Qm hash of this endpoint's deployment
@@ -19,12 +19,15 @@ class SubgraphState {
   // Boolean indicating the last known status of this endpoint. An "error" is defined as
   // (1) the subgraph crashed, (2) the subgraph is on a version with an incompatible schema, and queries are failing.
   static _endpointHasErrors = {};
+  // Timestamps of notable events on this endpoint: errors, out of sync, and stale version.
+  // The timestamp is updated any time one of these is encountered.
+  static _endpointTimestamps = {};
 
-  static getLatestErrorCheck(subgraphName) {
-    return this._latestErrorCheck[subgraphName];
+  static getLatestSubgraphErrorCheck(subgraphName) {
+    return this._latestSubgraphErrorCheck[subgraphName];
   }
-  static setLatestErrorCheck(subgraphName) {
-    this._latestErrorCheck[subgraphName] = new Date();
+  static setLatestSubgraphErrorCheck(subgraphName) {
+    this._latestSubgraphErrorCheck[subgraphName] = new Date();
   }
 
   static getEndpointDeployment(endpointIndex, subgraphName) {
@@ -71,6 +74,31 @@ class SubgraphState {
       this._endpointBlock[`${endpointIndex}-${subgraphName}`] = 0;
     }
     this._endpointHasErrors[`${endpointIndex}-${subgraphName}`] = value;
+  }
+
+  static getLastEndpointErrorTimestamp(endpointIndex, subgraphName) {
+    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.error;
+  }
+  static getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) {
+    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.outOfSync;
+  }
+  static getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) {
+    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.staleVersion;
+  }
+
+  static setLastEndpointErrorTimestamp(endpointIndex, subgraphName) {
+    this.setEndpointTimestamp(endpointIndex, subgraphName, 'error');
+  }
+  static setLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) {
+    this.setEndpointTimestamp(endpointIndex, subgraphName, 'outOfSync');
+  }
+  static setLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) {
+    this.setEndpointTimestamp(endpointIndex, subgraphName, 'staleVersion');
+  }
+
+  static setEndpointTimestamp(endpointIndex, subgraphName, timestampName) {
+    this._endpointTimestamps[`${endpointIndex}-${subgraphName}`] ??= {};
+    this._endpointTimestamps[`${endpointIndex}-${subgraphName}`][timestampName] = new Date();
   }
 
   // Derived functions

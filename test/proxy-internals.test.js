@@ -61,7 +61,7 @@ describe('Subgraph Proxy - Core', () => {
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 1, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, -1, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
-      jest.spyOn(SubgraphState, 'getLatestErrorCheck').mockReturnValue(undefined);
+      jest.spyOn(SubgraphState, 'getLatestSubgraphErrorCheck').mockReturnValue(undefined);
     });
 
     test('Initial endpoint succeeds', async () => {

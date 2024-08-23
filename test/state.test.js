@@ -45,4 +45,19 @@ describe('State: Derived functions', () => {
     expect(SubgraphState.allHaveErrors('bean')).toBeFalsy();
     expect(SubgraphState.allHaveErrors('basin')).toBeFalsy();
   });
+  test('Can set endpoint timestamps', () => {
+    const fakeNow = new Date(1700938811 * 1000);
+    jest.useFakeTimers();
+    jest.setSystemTime(fakeNow);
+
+    SubgraphState.setLastEndpointStaleVersionTimestamp(0, 'bean');
+    expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(fakeNow);
+
+    const fakeNow2 = new Date(1750938811 * 1000);
+    jest.setSystemTime(fakeNow2);
+
+    SubgraphState.setLastEndpointOutOfSyncTimestamp(0, 'bean');
+    expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(fakeNow);
+    expect(SubgraphState.getLastEndpointOutOfSyncTimestamp(0, 'bean')).toEqual(fakeNow2);
+  });
 });

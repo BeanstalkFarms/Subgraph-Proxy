@@ -136,7 +136,7 @@ class SubgraphProxyService {
   // Throws an exception based on the failure reason
   static async _throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints) {
     if (failedEndpoints.length > 0) {
-      if (new Date() - SubgraphState.getLatestErrorCheck(subgraphName) < 60 * 1000) {
+      if (new Date() - SubgraphState.getLatestSubgraphErrorCheck(subgraphName) < 60 * 1000) {
         if (SubgraphState.allHaveErrors(subgraphName)) {
           throw new EndpointError('Subgraph is unable to process this request and may be offline.');
         } else {
@@ -147,7 +147,7 @@ class SubgraphProxyService {
       // All endpoints failed. Attempt a known safe query to see if the subgraphs are down or the client
       // constructed a bad query.
       try {
-        SubgraphState.setLatestErrorCheck(subgraphName);
+        SubgraphState.setLatestSubgraphErrorCheck(subgraphName);
         const client = await SubgraphClients.makeCallableClient(
           LoadBalanceUtil.chooseEndpoint(subgraphName),
           subgraphName
