@@ -7,7 +7,7 @@ const RequestError = require('../error/request-error');
 const SubgraphState = require('../utils/state/subgraph');
 const ChainState = require('../utils/state/chain');
 const LoggingUtil = require('../utils/logging');
-const { throwOnInvalidName } = require('../utils/env');
+const { EnvUtil } = require('../utils/env');
 const RateLimitError = require('../error/rate-limit-error');
 require('../datasources/subgraph-clients');
 
@@ -28,7 +28,7 @@ const graphConfig = {
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
   static async handleProxyRequest(subgraphName, originalQuery) {
-    throwOnInvalidName(subgraphName);
+    EnvUtil.throwOnInvalidName(subgraphName);
     const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
     const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata);
 
@@ -68,7 +68,7 @@ class SubgraphProxyService {
         queryResult = await client(query);
       } catch (e) {
         if (e instanceof RateLimitError) {
-          throw e;
+          break; // Will likely result in rethrowing a different RateLimitError
         }
         if (await this._isFutureBlockException(e, endpointIndex, subgraphName)) {
           continue;

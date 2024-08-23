@@ -36,7 +36,6 @@ class BottleneckLimiters {
       // possible in times of many concurrent requests.
       throw new RateLimitError(`Exceeded rate limit for e-${endpointIndex}.`);
     }
-    console.log('reservoir size', await this.bottleneckLimiters[endpointIndex].currentReservoir());
     return this.bottleneckLimiters[endpointIndex].wrap(fnToWrap);
   }
 

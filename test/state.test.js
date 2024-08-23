@@ -1,10 +1,10 @@
-const LoadBalanceUtil = require('../src/utils/load/endpoint-balance');
+const { EnvUtil } = require('../src/utils/env');
 const ChainState = require('../src/utils/state/chain');
 const SubgraphState = require('../src/utils/state/subgraph');
 
 describe('State: Derived functions', () => {
   beforeAll(() => {
-    jest.spyOn(LoadBalanceUtil, 'numEndpointsConfigured').mockReturnValue(2);
+    jest.spyOn(EnvUtil, 'endpointsForSubgraph').mockReturnValue([0, 1]);
   });
 
   test('Gets aggregate latest subgraph version', () => {

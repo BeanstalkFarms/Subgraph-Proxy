@@ -1,4 +1,4 @@
-const LoadBalanceUtil = require('../load/endpoint-balance');
+const { EnvUtil } = require('../env');
 const SemVerUtil = require('../semver');
 const ChainState = require('./chain');
 
@@ -76,7 +76,7 @@ class SubgraphState {
   // Derived functions
   static getLatestVersion(subgraphName) {
     let versions = [];
-    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(subgraphName); ++i) {
+    for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
       versions.push(this._endpointVersion[`${i}-${subgraphName}`]);
     }
     versions = versions.filter((v) => v !== undefined).sort(SemVerUtil.compareVersions);
@@ -85,7 +85,7 @@ class SubgraphState {
 
   static getLatestBlock(subgraphName) {
     let blocks = [];
-    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(subgraphName); ++i) {
+    for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
       blocks.push(this._endpointBlock[`${i}-${subgraphName}`]);
     }
     blocks = blocks.filter((v) => v !== undefined).sort();
@@ -98,7 +98,7 @@ class SubgraphState {
   }
 
   static allHaveErrors(subgraphName) {
-    for (let i = 0; i < LoadBalanceUtil.numEndpointsConfigured(subgraphName); ++i) {
+    for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
       if (!this.endpointHasErrors(i, subgraphName)) {
         return false;
       }

@@ -1,5 +1,3 @@
-const { ENDPOINTS } = require('../env');
-
 // Add logic to support this:
 // If alchemy is <90% utilized, the request should go there.
 // Otherwise go to the graph
@@ -27,10 +25,6 @@ class EndpointBalanceUtil {
 
     // If a particular endpoint is known to service up to block X, where X is the latest chain block, it can be queried again
     // if preference prefers it. Otherwise try a different one.
-  }
-
-  static numEndpointsConfigured(subgraphName) {
-    return ENDPOINTS.length;
   }
 }
 

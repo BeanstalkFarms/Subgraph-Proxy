@@ -28,9 +28,26 @@ if (ENDPOINT_UTILIZATION_PREFERENCE.some((u) => u < 0 || u > 1)) {
   throw new Error('Invalid environment configured: utilization out of range');
 }
 
-function throwOnInvalidName(subgraphName) {
-  if (!ENABLED_SUBGRAPHS.includes(subgraphName)) {
-    throw new RequestError(`Subgraph name '${subgraphName}' is not configured for use in this gateway.`);
+class EnvUtil {
+  static throwOnInvalidName(subgraphName) {
+    if (!ENABLED_SUBGRAPHS.includes(subgraphName)) {
+      throw new RequestError(`Subgraph name '${subgraphName}' is not configured for use in this gateway.`);
+    }
+  }
+
+  static numEndpointsConfigured(subgraphName) {
+    return this.endpointsForSubgraph(subgraphName).length;
+  }
+
+  static endpointsForSubgraph(subgraphName) {
+    const subgraphIndex = ENABLED_SUBGRAPHS.indexOf(subgraphName);
+    const validIndices = [];
+    for (let i = 0; i < ENDPOINTS.length; ++i) {
+      if (ENDPOINT_SG_IDS[i][subgraphIndex]?.trim()) {
+        validIndices.push(i);
+      }
+    }
+    return validIndices;
   }
 }
 
@@ -40,5 +57,5 @@ module.exports = {
   ENDPOINT_UTILIZATION_PREFERENCE,
   ENABLED_SUBGRAPHS,
   ENDPOINT_SG_IDS,
-  throwOnInvalidName
+  EnvUtil
 };
