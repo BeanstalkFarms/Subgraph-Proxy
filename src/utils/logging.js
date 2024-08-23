@@ -1,7 +1,6 @@
 // TODO: standardize horizontal spacing so each section lines up vertically
 
-const { EnvUtil } = require('./env');
-const BottleneckLimiters = require('./load/bottleneck-limiters');
+const EndpointBalanceUtil = require('./load/endpoint-balance');
 
 class LoggingUtil {
   static async logSuccessfulProxy(subgraphName, endpointIndex, startTime, requestHistory) {
@@ -23,10 +22,8 @@ class LoggingUtil {
   }
 
   static async getUtilizationString(subgraphName) {
-    const utilization = [];
-    for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
-      utilization.push(`e-${i}:${((await BottleneckLimiters.getUtilization(i)) * 100).toFixed(0)}%`);
-    }
+    let utilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
+    utilization = utilization.map((v, idx) => `e-${idx}:${(v * 100).toFixed(0)}%`);
     return utilization.join(',');
   }
 }

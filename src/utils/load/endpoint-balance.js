@@ -3,6 +3,9 @@
 // Otherwise go to the graph
 // If both are >90% utilized, pari passu
 
+const { EnvUtil } = require('../env');
+const BottleneckLimiters = require('./bottleneck-limiters');
+
 // In the case of a crash: if it can identify that the subgraph has crashed, it should not query it again for 5 minutes
 // Something similar can be done if a stale deployment version is encountered
 
@@ -32,6 +35,15 @@ class EndpointBalanceUtil {
     //  c. if both have a result within the last second, prefer one having a later block
     //  d. prefer according to utilization
     // 4. If none could be selected, revisit step (3) with any that were removed in step (2)
+  }
+
+  // Returns the current utilization percentage for each endpoint underlying this subgraph
+  static async getSubgraphUtilization(subgraphName) {
+    const utilization = [];
+    for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
+      utilization.push(await BottleneckLimiters.getUtilization(endpointIndex));
+    }
+    return utilization;
   }
 }
 

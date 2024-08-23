@@ -1,6 +1,6 @@
 const { gql } = require('graphql-request');
 const SubgraphClients = require('../datasources/subgraph-clients');
-const LoadBalanceUtil = require('../utils/load/endpoint-balance');
+const EndpointBalanceUtil = require('../utils/load/endpoint-balance');
 const GraphqlQueryUtil = require('../utils/query-manipulation');
 const EndpointError = require('../error/endpoint-error');
 const RequestError = require('../error/request-error');
@@ -58,7 +58,7 @@ class SubgraphProxyService {
 
     let endpointIndex;
     while (
-      (endpointIndex = LoadBalanceUtil.chooseEndpoint(
+      (endpointIndex = EndpointBalanceUtil.chooseEndpoint(
         subgraphName,
         [...failedEndpoints, ...unsyncdEndpoints],
         endpointHistory
@@ -104,6 +104,7 @@ class SubgraphProxyService {
 
   // Updates persistent states upon a successful request
   static async _updateStates(endpointIndex, subgraphName, queryResult, failedEndpoints) {
+    SubgraphState.setLastEndpointUsageTimestamp(endpointIndex, subgraphName);
     SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
     SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
     SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
@@ -148,7 +149,7 @@ class SubgraphProxyService {
       try {
         SubgraphState.setLatestSubgraphErrorCheck(subgraphName);
         const client = await SubgraphClients.makeCallableClient(
-          LoadBalanceUtil.chooseEndpoint(subgraphName),
+          EndpointBalanceUtil.chooseEndpoint(subgraphName),
           subgraphName
         );
         await client(gql`

@@ -35,10 +35,6 @@ class EnvUtil {
     }
   }
 
-  static numEndpointsConfigured(subgraphName) {
-    return this.endpointsForSubgraph(subgraphName).length;
-  }
-
   static endpointsForSubgraph(subgraphName) {
     const subgraphIndex = ENABLED_SUBGRAPHS.indexOf(subgraphName);
     const validIndices = [];

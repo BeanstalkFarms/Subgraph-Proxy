@@ -86,6 +86,9 @@ class SubgraphState {
     this._endpointHasErrors[`${endpointIndex}-${subgraphName}`] = value;
   }
 
+  static getLastEndpointUsageTimestamp(endpointIndex, subgraphName) {
+    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.usage;
+  }
   static getLastEndpointErrorTimestamp(endpointIndex, subgraphName) {
     return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.error;
   }
@@ -96,6 +99,9 @@ class SubgraphState {
     return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.staleVersion;
   }
 
+  static setLastEndpointUsageTimestamp(endpointIndex, subgraphName) {
+    this.setEndpointTimestamp(endpointIndex, subgraphName, 'usage');
+  }
   static setLastEndpointErrorTimestamp(endpointIndex, subgraphName) {
     this.setEndpointTimestamp(endpointIndex, subgraphName, 'error');
   }
