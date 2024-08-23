@@ -8,9 +8,7 @@
 
 class EndpointBalanceUtil {
   /**
-   * Chooses which endpoint to use for an outgoing request. Prefers the latest version by default, and then
-   * selects according to the .env utilization and rate limiting configuration.
-   *
+   * Chooses which endpoint to use for an outgoing request.
    * @param {number[]} blacklist - none of these endpoints should be returned.
    * @param {number[]} history - sequence of endpoints which have been chosen and queried to serve this request.
    *    This is useful in balancing queries when one subgraph falls behind but not out of sync.
@@ -23,8 +21,15 @@ class EndpointBalanceUtil {
     }
     return 0;
 
-    // If a particular endpoint is known to service up to block X, where X is the latest chain block, it can be queried again
-    // if preference prefers it. Otherwise try a different one.
+    // Strategy
+    // 1. If in blacklist or isBurstDepleted, avoid outright
+    // 2. If the subgraph has errors, is out of sync, or is not on the latest version,
+    //    avoid unless some time has passed since last result
+    // 3. If there are still multiple to choose from:
+    //  a. do not prefer according to (b) or (c) if >100% utilization for the endpoint they would choose
+    //  b. if an endpoint is in history but not blacklist, prefer that one again if its block >= the chain head
+    //  c. if both have a result within the last second, prefer one having a later block
+    //  d. prefer according to utilization
   }
 }
 
