@@ -10,6 +10,7 @@ const { captureAndReturn } = require('./utils/capture-args');
 const beanResponse = require('./mock-responses/bean.json');
 const beanBehindResponse = require('./mock-responses/beanBehind.json');
 const beanNewDeploymentResponse = require('./mock-responses/beanNewDeployment.json');
+const RateLimitError = require('../src/error/rate-limit-error');
 const responseBlock = beanResponse._meta.block.number;
 const responseBehindBlock = beanBehindResponse._meta.block.number;
 const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
@@ -209,9 +210,9 @@ describe('Subgraph Proxy - Core', () => {
   });
 
   test('No endpoints are available', async () => {
-    // TODO: might be better to write this once the circumstances are clearer by which it can happen.
-    // The idea is that an incoming request may immediately be rejected and have no available endpoints.
-    // in this situation currently, it would reach the unreachable code exception. Unclear what is the proper
-    // status code to return in this case.
+    // The initial request is rejected, no endpoints are available to service this request
+    jest.spyOn(LoadBalanceUtil, 'chooseEndpoint').mockReturnValueOnce(-1);
+
+    await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RateLimitError);
   });
 });

@@ -1,5 +1,6 @@
 const { default: Bottleneck } = require('bottleneck');
 const { ENDPOINTS, ENDPOINT_RATE_LIMITS } = require('../env');
+const RateLimitError = require('../../error/rate-limit-error');
 
 class BottleneckLimiters {
   static bottleneckLimiters = [];
@@ -31,9 +32,9 @@ class BottleneckLimiters {
 
   static async wrap(endpointIndex, fnToWrap) {
     if (await this.isBurstDepleted(endpointIndex)) {
-      // TODO: 429
-      // This shouldn't be executed if the EndpointBalanceUtil does its job properly.
-      throw new Error(`Exceeded rate limit for e-${endpointIndex}.`);
+      // This shouldn't be executed if the EndpointBalanceUtil is working, though is in theory
+      // possible in times of many concurrent requests.
+      throw new RateLimitError(`Exceeded rate limit for e-${endpointIndex}.`);
     }
     console.log('reservoir size', await this.bottleneckLimiters[endpointIndex].currentReservoir());
     return this.bottleneckLimiters[endpointIndex].wrap(fnToWrap);

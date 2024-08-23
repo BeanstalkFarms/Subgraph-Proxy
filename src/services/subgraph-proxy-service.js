@@ -8,6 +8,7 @@ const SubgraphState = require('../utils/state/subgraph');
 const ChainState = require('../utils/state/chain');
 const LoggingUtil = require('../utils/logging');
 const { throwOnInvalidName } = require('../utils/env');
+const RateLimitError = require('../error/rate-limit-error');
 require('../datasources/subgraph-clients');
 
 const alchemyConfig = {
@@ -66,6 +67,9 @@ class SubgraphProxyService {
         const client = await SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
         queryResult = await client(query);
       } catch (e) {
+        if (e instanceof RateLimitError) {
+          throw e;
+        }
         if (await this._isFutureBlockException(e, endpointIndex, subgraphName)) {
           continue;
         } else {
@@ -150,6 +154,9 @@ class SubgraphProxyService {
           }
         `);
       } catch (e) {
+        if (e instanceof RateLimitError) {
+          throw e;
+        }
         // The endpoint cannot process a basic request, assume the user query was ok
         for (const failedIndex of failedEndpoints) {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
@@ -161,8 +168,12 @@ class SubgraphProxyService {
       throw new RequestError(errors[0].message);
     } else if (unsyncdEndpoints.length > 0) {
       throw new EndpointError('Subgraph has not yet indexed up to the latest block.');
+    } else {
+      // No endpoint was even attempted
+      throw new RateLimitError(
+        'The server is currently experiencing high traffic and cannot process your request. Please try again later.'
+      );
     }
-    throw new Error('This should be unreachable');
   }
 }
 
