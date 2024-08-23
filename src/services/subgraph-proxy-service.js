@@ -58,8 +58,11 @@ class SubgraphProxyService {
 
     let endpointIndex;
     while (
-      (endpointIndex = LoadBalanceUtil.chooseEndpoint([...failedEndpoints, ...unsyncdEndpoints], endpointHistory)) !==
-      -1
+      (endpointIndex = LoadBalanceUtil.chooseEndpoint(
+        subgraphName,
+        [...failedEndpoints, ...unsyncdEndpoints],
+        endpointHistory
+      )) !== -1
     ) {
       endpointHistory.push(endpointIndex);
       let queryResult;
@@ -145,7 +148,10 @@ class SubgraphProxyService {
       // constructed a bad query.
       try {
         SubgraphState.setLatestErrorCheck(subgraphName);
-        const client = await SubgraphClients.makeCallableClient(LoadBalanceUtil.chooseEndpoint(), subgraphName);
+        const client = await SubgraphClients.makeCallableClient(
+          LoadBalanceUtil.chooseEndpoint(subgraphName),
+          subgraphName
+        );
         await client(gql`
           {
             _meta {

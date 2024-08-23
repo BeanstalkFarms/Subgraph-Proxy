@@ -26,10 +26,10 @@ describe('State: Derived functions', () => {
     expect(SubgraphState.getLatestBlock('beanstalk')).toEqual(19);
   });
   test('Checks whether the endpoint is in sync', async () => {
-    jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(50);
+    jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(500);
 
-    SubgraphState.setEndpointBlock(0, 'bean', 49);
-    SubgraphState.setEndpointBlock(1, 'bean', 25);
+    SubgraphState.setEndpointBlock(0, 'bean', 495);
+    SubgraphState.setEndpointBlock(1, 'bean', 100);
 
     expect(await SubgraphState.isInSync(0, 'bean', 'ethereum')).toBeTruthy();
     expect(await SubgraphState.isInSync(1, 'bean', 'ethereum')).toBeFalsy();

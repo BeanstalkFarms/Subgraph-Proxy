@@ -69,7 +69,7 @@ describe('Subgraph Proxy - Core', () => {
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
-      expect(endpointArgCapture[0]).toEqual([[], []]);
+      expect(endpointArgCapture[0]).toEqual(['bean', [], []]);
     });
     test('Second endpoint succeeds', async () => {
       jest
@@ -82,8 +82,8 @@ describe('Subgraph Proxy - Core', () => {
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(2);
-      expect(endpointArgCapture[0]).toEqual([[], []]);
-      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
+      expect(endpointArgCapture[0]).toEqual(['bean', [], []]);
+      expect(endpointArgCapture[1]).toEqual(['bean', [0], [0]]);
     });
     test('Both endpoints fail - user error', async () => {
       jest
@@ -99,28 +99,22 @@ describe('Subgraph Proxy - Core', () => {
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
-      expect(endpointArgCapture[0]).toEqual([[], []]);
-      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
-      expect(endpointArgCapture[2]).toEqual([
-        [0, 1],
-        [0, 1]
-      ]);
-      expect(endpointArgCapture[3]).toEqual([]);
+      expect(endpointArgCapture[0]).toEqual(['bean', [], []]);
+      expect(endpointArgCapture[1]).toEqual(['bean', [0], [0]]);
+      expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1]]);
+      expect(endpointArgCapture[3]).toEqual(['bean']);
     });
     test('Both endpoints fail - endpoint error', async () => {
       jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementation(async () => async () => {
         throw new Error('Generic failure reason');
       }); // This implementation will be used 3 times, all are failure
 
-      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(EndpointError);
+      await expect(SubgraphProxyService._getQueryResult('beanstalk', 'graphql query')).rejects.toThrow(EndpointError);
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
-      expect(endpointArgCapture[0]).toEqual([[], []]);
-      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
-      expect(endpointArgCapture[2]).toEqual([
-        [0, 1],
-        [0, 1]
-      ]);
-      expect(endpointArgCapture[3]).toEqual([]);
+      expect(endpointArgCapture[0]).toEqual(['beanstalk', [], []]);
+      expect(endpointArgCapture[1]).toEqual(['beanstalk', [0], [0]]);
+      expect(endpointArgCapture[2]).toEqual(['beanstalk', [0, 1], [0, 1]]);
+      expect(endpointArgCapture[3]).toEqual(['beanstalk']);
     });
     test('One endpoint is out of sync', async () => {
       jest
@@ -131,7 +125,7 @@ describe('Subgraph Proxy - Core', () => {
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(2);
-      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
+      expect(endpointArgCapture[1]).toEqual(['bean', [0], [0]]);
     });
     test('Both endpoints are out of sync', async () => {
       jest
@@ -142,11 +136,8 @@ describe('Subgraph Proxy - Core', () => {
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(EndpointError);
 
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
-      expect(endpointArgCapture[1]).toEqual([[0], [0]]);
-      expect(endpointArgCapture[2]).toEqual([
-        [0, 1],
-        [0, 1]
-      ]);
+      expect(endpointArgCapture[1]).toEqual(['bean', [0], [0]]);
+      expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1]]);
     });
 
     test('User explicitly queries far future block', async () => {
@@ -179,8 +170,8 @@ describe('Subgraph Proxy - Core', () => {
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
-      expect(endpointArgCapture[1]).toEqual([[], [0]]);
-      expect(endpointArgCapture[2]).toEqual([[], [0, 1]]);
+      expect(endpointArgCapture[1]).toEqual(['bean', [], [0]]);
+      expect(endpointArgCapture[2]).toEqual(['bean', [], [0, 1]]);
     });
     test('Latest known indexed block is temporarily unavailable', async () => {
       jest
@@ -204,8 +195,8 @@ describe('Subgraph Proxy - Core', () => {
       // Second query that fails to get the latest block on first 2 attempts
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
-      expect(endpointArgCapture[2]).toEqual([[], [0]]);
-      expect(endpointArgCapture[3]).toEqual([[], [0, 1]]);
+      expect(endpointArgCapture[2]).toEqual(['bean', [], [0]]);
+      expect(endpointArgCapture[3]).toEqual(['bean', [], [0, 1]]);
     });
   });
 
