@@ -1,10 +1,10 @@
 const { default: Bottleneck } = require('bottleneck');
 const { ENDPOINTS, ENDPOINT_RATE_LIMITS } = require('../env');
 
-const MAX_CONCURRENT_SCALAR = 2;
-
 class BottleneckLimiters {
   static bottleneckLimiters = [];
+  static maxPeriodicRquests = [];
+  static maxReservoirSizes = [];
 
   // Create a limiter for each configured endpoint
   static {
@@ -16,19 +16,41 @@ class BottleneckLimiters {
 
       this.bottleneckLimiters.push(
         new Bottleneck({
-          reservoir: rqPerInterval,
+          reservoir: maxBurst,
           reservoirIncreaseAmount: rqPerInterval,
           reservoirIncreaseInterval: interval,
           reservoirIncreaseMaximum: maxBurst,
-          maxConcurrent: rqPerInterval * MAX_CONCURRENT_SCALAR,
+          maxConcurrent: maxBurst,
           minTime: Math.ceil(interval / rqPerInterval)
         })
       );
+      this.maxPeriodicRquests.push(rqPerInterval);
+      this.maxReservoirSizes.push(maxBurst);
     }
   }
 
-  static getLimiter(endpointIndex) {
-    return this.bottleneckLimiters[endpointIndex];
+  static async wrap(endpointIndex, fnToWrap) {
+    if (await this.isBurstDepleted(endpointIndex)) {
+      // TODO: 429
+      // This shouldn't be executed if the EndpointBalanceUtil does its job properly.
+      throw new Error(`Exceeded rate limit for e-${endpointIndex}.`);
+    }
+    console.log('reservoir size', await this.bottleneckLimiters[endpointIndex].currentReservoir());
+    return this.bottleneckLimiters[endpointIndex].wrap(fnToWrap);
+  }
+
+  static async isBurstDepleted(endpointIndex) {
+    return (await this.bottleneckLimiters[endpointIndex].currentReservoir()) === 0;
+  }
+
+  // Returns the utilization as a ratio of current active requests / max rq per interval.
+  // Can exceed 100%
+  static async getUtilization(endpointIndex) {
+    const currentReservoir = await this.bottleneckLimiters[endpointIndex].currentReservoir();
+    // These aren't necessarily still executing, but they are considered "active" in that they
+    // were either scheduled recently or are queued to be executed.
+    const activeRequests = this.maxReservoirSizes[endpointIndex] - currentReservoir;
+    return activeRequests / this.maxPeriodicRquests[endpointIndex];
   }
 }
 

@@ -64,7 +64,7 @@ describe('Subgraph Proxy - Core', () => {
     });
 
     test('Initial endpoint succeeds', async () => {
-      jest.spyOn(SubgraphClients, 'makeCallableClient').mockReturnValueOnce(async () => beanResponse);
+      jest.spyOn(SubgraphClients, 'makeCallableClient').mockResolvedValueOnce(async () => beanResponse);
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
@@ -73,10 +73,10 @@ describe('Subgraph Proxy - Core', () => {
     test('Second endpoint succeeds', async () => {
       jest
         .spyOn(SubgraphClients, 'makeCallableClient')
-        .mockImplementationOnce(() => async () => {
+        .mockImplementationOnce(async () => async () => {
           throw new Error('Generic failure reason');
         })
-        .mockReturnValueOnce(async () => beanResponse);
+        .mockResolvedValueOnce(async () => beanResponse);
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
@@ -87,14 +87,14 @@ describe('Subgraph Proxy - Core', () => {
     test('Both endpoints fail - user error', async () => {
       jest
         .spyOn(SubgraphClients, 'makeCallableClient')
-        .mockImplementationOnce(() => async () => {
+        .mockImplementationOnce(async () => async () => {
           throw new Error('Generic failure reason');
         })
-        .mockImplementationOnce(() => async () => {
+        .mockImplementationOnce(async () => async () => {
           throw new Error('Generic failure reason');
         })
         // Both endpoints failed the user request but succeed the simple request
-        .mockReturnValueOnce(async () => beanResponse);
+        .mockResolvedValueOnce(async () => beanResponse);
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
@@ -107,7 +107,7 @@ describe('Subgraph Proxy - Core', () => {
       expect(endpointArgCapture[3]).toEqual([]);
     });
     test('Both endpoints fail - endpoint error', async () => {
-      jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementation(() => async () => {
+      jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementation(async () => async () => {
         throw new Error('Generic failure reason');
       }); // This implementation will be used 3 times, all are failure
 
@@ -124,8 +124,8 @@ describe('Subgraph Proxy - Core', () => {
     test('One endpoint is out of sync', async () => {
       jest
         .spyOn(SubgraphClients, 'makeCallableClient')
-        .mockReturnValueOnce(async () => beanNewDeploymentResponse)
-        .mockReturnValueOnce(async () => beanResponse);
+        .mockResolvedValueOnce(async () => beanNewDeploymentResponse)
+        .mockResolvedValueOnce(async () => beanResponse);
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
 
@@ -135,8 +135,8 @@ describe('Subgraph Proxy - Core', () => {
     test('Both endpoints are out of sync', async () => {
       jest
         .spyOn(SubgraphClients, 'makeCallableClient')
-        .mockReturnValueOnce(async () => beanNewDeploymentResponse)
-        .mockReturnValueOnce(async () => beanNewDeploymentResponse);
+        .mockResolvedValueOnce(async () => beanNewDeploymentResponse)
+        .mockResolvedValueOnce(async () => beanNewDeploymentResponse);
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(EndpointError);
 
@@ -149,7 +149,7 @@ describe('Subgraph Proxy - Core', () => {
     });
 
     test('User explicitly queries far future block', async () => {
-      jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementationOnce(() => async () => {
+      jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementationOnce(async () => async () => {
         throw new Error(`block number ${responseBlock + 1000} is therefore not yet available`);
       });
 
@@ -160,13 +160,13 @@ describe('Subgraph Proxy - Core', () => {
       // Request fails the first 2 times, and succeeds on the third
       jest
         .spyOn(SubgraphClients, 'makeCallableClient')
-        .mockImplementationOnce(() => async () => {
+        .mockImplementationOnce(async () => async () => {
           throw new Error(`block number ${responseBlock} is therefore not yet available`);
         })
-        .mockImplementationOnce(() => async () => {
+        .mockImplementationOnce(async () => async () => {
           throw new Error(`block number ${responseBlock} is therefore not yet available`);
         })
-        .mockReturnValueOnce(async () => beanResponse);
+        .mockResolvedValueOnce(async () => beanResponse);
 
       // Different logic here to prevent returning -1 on third invocation
       jest
@@ -192,10 +192,10 @@ describe('Subgraph Proxy - Core', () => {
 
       jest
         .spyOn(SubgraphClients, 'makeCallableClient')
-        .mockReturnValueOnce(async () => beanResponse)
-        .mockReturnValueOnce(async () => beanBehindResponse)
-        .mockReturnValueOnce(async () => beanBehindResponse)
-        .mockReturnValueOnce(async () => beanResponse);
+        .mockResolvedValueOnce(async () => beanResponse)
+        .mockResolvedValueOnce(async () => beanBehindResponse)
+        .mockResolvedValueOnce(async () => beanBehindResponse)
+        .mockResolvedValueOnce(async () => beanResponse);
       // Initial query that gets the latest block successfully
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
       expect(LoadBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);

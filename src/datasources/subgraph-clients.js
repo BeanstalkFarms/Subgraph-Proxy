@@ -16,7 +16,7 @@ class SubgraphClients {
     return this.clients[key];
   }
 
-  static makeCallableClient(endpointIndex, subgraphName) {
+  static async makeCallableClient(endpointIndex, subgraphName) {
     const subgraphIndex = ENABLED_SUBGRAPHS.indexOf(subgraphName);
     if (subgraphIndex === -1) {
       throw new Error(`Unsupported subgraph: ${subgraphName}`);
@@ -27,7 +27,7 @@ class SubgraphClients {
       const response = await client.request(query);
       return response;
     };
-    const limiterWrapped = BottleneckLimiters.getLimiter(endpointIndex).wrap(callableClient);
+    const limiterWrapped = await BottleneckLimiters.wrap(endpointIndex, callableClient);
     return limiterWrapped;
   }
 }
