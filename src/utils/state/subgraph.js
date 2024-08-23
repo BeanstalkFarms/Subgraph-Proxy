@@ -92,9 +92,9 @@ class SubgraphState {
     return blocks[blocks.length - 1];
   }
 
-  // Not a perfect assumption - the endpoint is considered in sync if it is within 10 blocks of the chain head.
+  // Not a perfect assumption - the endpoint is considered in sync if it is within 50 blocks of the chain head.
   static async isInSync(endpointIndex, subgraphName, chain) {
-    return this.getEndpointBlock(endpointIndex, subgraphName) + 10 > (await ChainState.getChainHead(chain));
+    return this.getEndpointBlock(endpointIndex, subgraphName) + 50 > (await ChainState.getChainHead(chain));
   }
 
   static allHaveErrors(subgraphName) {
