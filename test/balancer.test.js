@@ -122,13 +122,12 @@ describe('Endpoint Balancer', () => {
 
   describe('<100% utilized', () => {
     test('Endpoint under utilization preference cap is preferred', async () => {
-      jest
-        .spyOn(BottleneckLimiters, 'getUtilization')
-        .mockResolvedValueOnce(0.5)
-        .mockImplementation((endpointIndex) => {
-          return endpointIndex === 0 ? 0.95 : 0.4;
-        });
+      jest.spyOn(BottleneckLimiters, 'getUtilization').mockResolvedValue(0.5);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(0);
+
+      jest.spyOn(BottleneckLimiters, 'getUtilization').mockImplementation((endpointIndex) => {
+        return endpointIndex === 0 ? 0.95 : 0.4;
+      });
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
     });
