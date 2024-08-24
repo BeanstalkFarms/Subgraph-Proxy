@@ -6,3 +6,7 @@ jest.mock('../src/utils/logging');
 jest.mock('../src/utils/load/bottleneck-limiters', () => {
   return {};
 });
+// Disable evm providers. Mock entire module so the static initializer does not execute
+jest.mock('../src/datasources/evm-providers', () => {
+  return {};
+});

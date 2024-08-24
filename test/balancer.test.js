@@ -58,6 +58,7 @@ describe('Endpoint Balancer', () => {
     jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(500);
     jest.spyOn(SubgraphState, 'endpointHasErrors').mockReturnValue(false);
     jest.spyOn(SubgraphState, 'isInSync').mockReturnValue(true);
+    jest.spyOn(SubgraphState, 'getEndpointDeployment').mockReturnValue('abc');
     jest.spyOn(SubgraphState, 'getEndpointVersion').mockReturnValue('1.0.0');
     jest.spyOn(SubgraphState, 'getLatestVersion').mockReturnValue('1.0.0');
     jest.spyOn(SubgraphState, 'getEndpointBlock').mockReturnValue(500);
