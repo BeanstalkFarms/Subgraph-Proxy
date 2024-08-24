@@ -13,9 +13,9 @@ class LoggingUtil {
   }
 
   // Samples:
-  // 2024-08-24T01:16:58.197Z [success]: beanstalk_proxy to e-0 after  156ms | Steps: 0 | Load: e-0:0%,e-1:0%
-  // 2024-08-24T01:16:50.403Z [success]: bean----------- to e-0 after  157ms | Steps: 0 | Load: e-0:33%,e-1:0%
-  // 2024-08-24T01:17:41.354Z <failure>: basin---------- ------ after  141ms | Steps: 0 | Load: e-0:33%
+  // 2024-08-24T01:16:58.197Z [success]: beanstalk_proxy to e-0 after  156ms | Steps: 0 | Load: e-0:  0%, e-1:0%
+  // 2024-08-24T01:16:50.403Z [success]: bean----------- to e-0 after  157ms | Steps: 0 | Load: e-0: 33%, e-1:0%
+  // 2024-08-24T01:17:41.354Z <failure>: basin---------- ------ after  141ms | Steps: 0 | Load: e-0: 33%
   static async _formatLog(type, subgraphName, startTime, requestHistory, usedEndpoint = undefined) {
     if (subgraphName.length > this.longestEncounteredName) {
       this.longestEncounteredName = subgraphName.length;
@@ -34,8 +34,10 @@ class LoggingUtil {
 
   static async _getUtilizationString(subgraphName) {
     let utilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
-    const strings = Object.keys(utilization).map((key) => `e-${key}:${(utilization[key] * 100).toFixed(0)}%`);
-    return strings.join(',');
+    const strings = Object.keys(utilization).map(
+      (key) => `e-${key}:${(utilization[key] * 100).toFixed(0).padStart(3)}%`
+    );
+    return strings.join(', ');
   }
 }
 
