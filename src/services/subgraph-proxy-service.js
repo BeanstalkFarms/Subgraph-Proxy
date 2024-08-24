@@ -9,6 +9,7 @@ const SubgraphState = require('../utils/state/subgraph');
 const ChainState = require('../utils/state/chain');
 const LoggingUtil = require('../utils/logging');
 const { EnvUtil } = require('../utils/env');
+const DiscordUtil = require('../utils/discord');
 
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
@@ -161,6 +162,9 @@ class SubgraphProxyService {
       throw new EndpointError('Subgraph has not yet indexed up to the latest block.');
     } else {
       // No endpoint was even attempted
+      DiscordUtil.sendWebhookMessage(
+        `Rate limit exceeded on all subgraphs for '${subgraphName}'. A request was dropped`
+      );
       throw new RateLimitError(
         'The server is currently experiencing high traffic and cannot process your request. Please try again later.'
       );
