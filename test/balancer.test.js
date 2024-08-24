@@ -22,30 +22,30 @@ const mockTimeFuture = new Date(1710938811 * 1000);
 
 /** Tests according to the strategy description on EndpointBalanceUtil.chooseEndpoint method. **/
 
-const mockEndpointErrors = (idx) => {
+const mockEndpointErrors = (index, value) => {
   jest.spyOn(SubgraphState, 'endpointHasErrors').mockImplementation((endpointIndex, _) => {
-    return endpointIndex === idx;
+    return endpointIndex === index ? value : !value;
   });
   jest.spyOn(SubgraphState, 'getLastEndpointErrorTimestamp').mockImplementation((endpointIndex, _) => {
-    return endpointIndex === idx ? mockTimeNow : undefined;
+    return endpointIndex === index ? mockTimeNow : undefined;
   });
 };
 
-const mockEndpointOutOfSync = (idx) => {
+const mockEndpointOutOfSync = (index, value) => {
   jest.spyOn(SubgraphState, 'isInSync').mockImplementation((endpointIndex, _) => {
-    return endpointIndex !== idx;
+    return endpointIndex === index ? !value : value;
   });
   jest.spyOn(SubgraphState, 'getLastEndpointOutOfSyncTimestamp').mockImplementation((endpointIndex, _) => {
-    return endpointIndex === idx ? mockTimeNow : undefined;
+    return endpointIndex === index ? mockTimeNow : undefined;
   });
 };
 
-const mockEndpointOnStaleVersion = (idx) => {
+const mockEndpointOnStaleVersion = (index, value) => {
   jest.spyOn(SubgraphState, 'isStaleVersion').mockImplementation((endpointIndex, _) => {
-    return endpointIndex === idx;
+    return endpointIndex === index ? value : !value;
   });
   jest.spyOn(SubgraphState, 'getLastEndpointStaleVersionTimestamp').mockImplementation((endpointIndex, _) => {
-    return endpointIndex === idx ? mockTimeNow : undefined;
+    return endpointIndex === index ? mockTimeNow : undefined;
   });
 };
 
@@ -89,7 +89,7 @@ describe('Endpoint Balancer', () => {
 
   describe('Prefers to avoid troublesome endpoints', () => {
     test('Endpoints with errors are not selected unless time elapsed', async () => {
-      mockEndpointErrors(0);
+      mockEndpointErrors(0, true);
       const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice1).toEqual(1);
 
@@ -97,8 +97,9 @@ describe('Endpoint Balancer', () => {
       const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice2).toEqual(0);
     });
+
     test('Endpoints out of sync are not selected unless time elapsed', async () => {
-      mockEndpointOutOfSync(0);
+      mockEndpointOutOfSync(0, true);
       const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice1).toEqual(1);
 
@@ -106,12 +107,43 @@ describe('Endpoint Balancer', () => {
       const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice2).toEqual(0);
     });
+
     test('Endpoints on older version are not selected unless time elapsed', async () => {
-      mockEndpointOnStaleVersion(0);
+      mockEndpointOnStaleVersion(0, true);
       const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice1).toEqual(1);
 
       jest.setSystemTime(mockTimeFuture);
+      const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
+      expect(choice2).toEqual(0);
+    });
+
+    test('Endpoints with recent errors can be selected if recovered', async () => {
+      mockEndpointErrors(0, true);
+      const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
+      expect(choice1).toEqual(1);
+
+      mockEndpointErrors(0, false);
+      const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
+      expect(choice2).toEqual(0);
+    });
+
+    test('Endpoints out of sync recently can be selected if recovered', async () => {
+      mockEndpointOutOfSync(0, true);
+      const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
+      expect(choice1).toEqual(1);
+
+      mockEndpointOutOfSync(0, false);
+      const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
+      expect(choice2).toEqual(0);
+    });
+
+    test('Endpoints recently on older version can be selected if recovered', async () => {
+      mockEndpointOnStaleVersion(0, true);
+      const choice1 = await EndpointBalanceUtil.chooseEndpoint('bean');
+      expect(choice1).toEqual(1);
+
+      mockEndpointOnStaleVersion(0, false);
       const choice2 = await EndpointBalanceUtil.chooseEndpoint('bean');
       expect(choice2).toEqual(0);
     });
@@ -238,17 +270,17 @@ describe('Endpoint Balancer', () => {
 
   describe('Last resort selections', () => {
     test('Chooses endpoint with errors if all remaining endpoints have recent errors', async () => {
-      mockEndpointErrors(0);
+      mockEndpointErrors(0, true);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
     });
     test('Chooses endpoint out of sync if all remaining endpoints are recently out of sync', async () => {
-      mockEndpointOutOfSync(0);
+      mockEndpointOutOfSync(0, true);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
     });
     test('Chooses endpoint on older version if all remaining endpoints are recently on older version', async () => {
-      mockEndpointOnStaleVersion(0);
+      mockEndpointOnStaleVersion(0, true);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
     });
