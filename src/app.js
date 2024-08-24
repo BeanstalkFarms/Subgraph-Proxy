@@ -25,6 +25,10 @@ async function appStartup() {
       ctx.body = {
         message: err.showMessage ? err.message : 'Internal Server Error.'
       };
+      // This was not anticipated, log it
+      if (!err.showMessage) {
+        console.log(err);
+      }
     }
   });
 

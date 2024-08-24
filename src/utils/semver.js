@@ -1,5 +1,13 @@
 class SemVerUtil {
   static compareVersions(version1, version2) {
+    if (version1 === undefined && version2 === undefined) {
+      return 0;
+    } else if (version1 === undefined) {
+      return -1;
+    } else if (version2 === undefined) {
+      return 1;
+    }
+
     const v1 = version1.split('.').map((v) => Number(v.replace(/[^0-9]/g, '')));
     const v2 = version2.split('.').map((v) => Number(v.replace(/[^0-9]/g, '')));
 

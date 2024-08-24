@@ -142,7 +142,7 @@ class SubgraphState {
     return this.getEndpointBlock(endpointIndex, subgraphName) + 50 > (await ChainState.getChainHead(chain));
   }
 
-  static async isStaleVersion(endpointIndex, subgraphName) {
+  static isStaleVersion(endpointIndex, subgraphName) {
     return (
       SemVerUtil.compareVersions(
         this.getEndpointVersion(endpointIndex, subgraphName),
