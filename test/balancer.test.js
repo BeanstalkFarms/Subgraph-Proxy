@@ -229,18 +229,18 @@ describe('Endpoint Balancer', () => {
 
     test('History endpoint is preferred to be re-queried', async () => {
       jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
-        return endpointIndex === 0 ? 499 : 500;
+        return endpointIndex === 0 ? 500 : 499;
       });
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [1])).toEqual(1);
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1], [1])).toEqual(0);
+      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0])).toEqual(0);
+      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [0])).toEqual(1);
     });
 
     test('History endpoint is not preferred to be re-queried', async () => {
       jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
-        return endpointIndex === 0 ? 499 : 500;
+        return endpointIndex === 0 ? 500 : 499;
       });
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0])).toEqual(1);
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1], [0])).toEqual(0);
+      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [1])).toEqual(0);
+      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [1])).toEqual(1);
     });
   });
 
