@@ -12,6 +12,7 @@ const ENDPOINT_UTILIZATION_PREFERENCE = process.env.ENDPOINT_UTILIZATION_PREFERE
 );
 const ENABLED_SUBGRAPHS = process.env.ENABLED_SUBGRAPHS?.split(',');
 const ENDPOINT_SG_IDS = process.env.ENDPOINT_SG_IDS?.split('|').map((sg) => sg.split(','));
+const EVM_RPC_URLS = process.env.EVM_RPC_URLS?.split(',');
 
 // Validation
 for (const endpointIds of ENDPOINT_SG_IDS) {
@@ -53,5 +54,6 @@ module.exports = {
   ENDPOINT_UTILIZATION_PREFERENCE,
   ENABLED_SUBGRAPHS,
   ENDPOINT_SG_IDS,
+  EVM_RPC_URLS,
   EnvUtil
 };

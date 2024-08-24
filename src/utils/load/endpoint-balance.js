@@ -112,15 +112,18 @@ class EndpointBalanceUtil {
     const now = new Date();
     const troublesomeEndpoints = [];
     for (const endpointIndex of endpointsIndices) {
-      if (
-        (SubgraphState.endpointHasErrors(endpointIndex, subgraphName) &&
-          now - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
-        (!SubgraphState.isInSync(endpointIndex, subgraphName) &&
-          now - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
-        (SubgraphState.isStaleVersion(endpointIndex, subgraphName) &&
-          now - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < 60 * 1000)
-      ) {
-        troublesomeEndpoints.push(endpointIndex);
+      // Dont consider a subgraph troublesome if it hasnt been queried yet
+      if (SubgraphState.getEndpointDeployment(endpointIndex, subgraphName)) {
+        if (
+          (SubgraphState.endpointHasErrors(endpointIndex, subgraphName) &&
+            now - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
+          (!SubgraphState.isInSync(endpointIndex, subgraphName) &&
+            now - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
+          (SubgraphState.isStaleVersion(endpointIndex, subgraphName) &&
+            now - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < 60 * 1000)
+        ) {
+          troublesomeEndpoints.push(endpointIndex);
+        }
       }
     }
     return troublesomeEndpoints;
