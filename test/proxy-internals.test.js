@@ -11,6 +11,7 @@ const beanResponse = require('./mock-responses/bean.json');
 const beanBehindResponse = require('./mock-responses/beanBehind.json');
 const beanNewDeploymentResponse = require('./mock-responses/beanNewDeployment.json');
 const RateLimitError = require('../src/error/rate-limit-error');
+const EnvUtil = require('../src/utils/env');
 const responseBlock = beanResponse._meta.block.number;
 const responseBehindBlock = beanBehindResponse._meta.block.number;
 const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
@@ -26,6 +27,7 @@ describe('Subgraph Proxy - Core', () => {
 
   beforeAll(() => {
     jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(responseBlock);
+    jest.spyOn(EnvUtil, 'endpointsForSubgraph').mockReturnValue([0, 1]);
   });
 
   test('Can successfully update the global state', async () => {

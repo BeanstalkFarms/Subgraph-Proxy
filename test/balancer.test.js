@@ -1,14 +1,7 @@
 const EndpointBalanceUtil = require('../src/utils/load/endpoint-balance');
 const ChainState = require('../src/utils/state/chain');
 const SubgraphState = require('../src/utils/state/subgraph');
-
-jest.mock('../src/utils/env', () => ({
-  ENDPOINT_UTILIZATION_PREFERENCE: [0.8, 0.8],
-  EnvUtil: {
-    endpointsForSubgraph: jest.fn()
-  }
-}));
-const { EnvUtil } = require('../src/utils/env');
+const EnvUtil = require('../src/utils/env');
 
 jest.mock('../src/utils/load/bottleneck-limiters', () => ({
   isBurstDepleted: jest.fn(),
@@ -53,7 +46,7 @@ describe('Endpoint Balancer', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(EnvUtil, 'endpointsForSubgraph').mockReturnValue([0, 1]);
-    // Utilization configured in env mocking above (not a mock function)
+    jest.spyOn(EnvUtil, 'getEndpointUtilizationPreference').mockReturnValue([0.8, 0.8]);
 
     jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(500);
     jest.spyOn(SubgraphState, 'endpointHasErrors').mockReturnValue(false);
