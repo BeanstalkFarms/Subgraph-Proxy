@@ -1,4 +1,4 @@
-const { EnvUtil, ENDPOINT_UTILIZATION_PREFERENCE } = require('../env');
+const EnvUtil = require('../env');
 const SubgraphState = require('../state/subgraph');
 const BottleneckLimiters = require('./bottleneck-limiters');
 
@@ -80,8 +80,8 @@ class EndpointBalanceUtil {
 
         // Choose according to utilization
         if (
-          currentUtilization[a] < ENDPOINT_UTILIZATION_PREFERENCE[a] &&
-          currentUtilization[b] < ENDPOINT_UTILIZATION_PREFERENCE[b]
+          currentUtilization[a] < EnvUtil.getEndpointUtilizationPreference()[a] &&
+          currentUtilization[b] < EnvUtil.getEndpointUtilizationPreference()[b]
         ) {
           // Neither are exceeding the preference, use the preferred/lower index endpoint
           return a - b;

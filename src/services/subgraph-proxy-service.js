@@ -8,7 +8,7 @@ const RateLimitError = require('../error/rate-limit-error');
 const SubgraphState = require('../utils/state/subgraph');
 const ChainState = require('../utils/state/chain');
 const LoggingUtil = require('../utils/logging');
-const { EnvUtil } = require('../utils/env');
+const EnvUtil = require('../utils/env');
 const DiscordUtil = require('../utils/discord');
 
 class SubgraphProxyService {

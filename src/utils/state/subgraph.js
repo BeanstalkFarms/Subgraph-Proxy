@@ -1,4 +1,4 @@
-const { EnvUtil } = require('../env');
+const EnvUtil = require('../env');
 const SemVerUtil = require('../semver');
 const ChainState = require('./chain');
 

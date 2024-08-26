@@ -1,6 +1,6 @@
 const { default: Bottleneck } = require('bottleneck');
-const { ENDPOINTS, ENDPOINT_RATE_LIMITS } = require('../env');
 const RateLimitError = require('../../error/rate-limit-error');
+const EnvUtil = require('../env');
 
 class BottleneckLimiters {
   static bottleneckLimiters = [];
@@ -9,8 +9,8 @@ class BottleneckLimiters {
 
   // Create a limiter for each configured endpoint
   static {
-    for (let i = 0; i < ENDPOINTS.length; ++i) {
-      const [rqPerInterval, interval, maxBurst] = ENDPOINT_RATE_LIMITS[i];
+    for (let i = 0; i < EnvUtil.getEndpoints().length; ++i) {
+      const [rqPerInterval, interval, maxBurst] = EnvUtil.getEndpointRateLimits()[i];
       if (interval % 250 !== 0) {
         throw new Error('Invalid .env configuration: bottleneck requires rate limit interval divisible by 250.');
       }

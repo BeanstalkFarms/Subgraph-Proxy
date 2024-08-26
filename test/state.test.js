@@ -1,4 +1,4 @@
-const { EnvUtil } = require('../src/utils/env');
+const EnvUtil = require('../src/utils/env');
 const ChainState = require('../src/utils/state/chain');
 const SubgraphState = require('../src/utils/state/subgraph');
 

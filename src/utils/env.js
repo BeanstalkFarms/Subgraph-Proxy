@@ -1,5 +1,4 @@
 const RequestError = require('../error/request-error');
-
 require('dotenv').config();
 
 // Need to replace "<sg>" with the name/id of the subgraph to use
@@ -36,6 +35,14 @@ class EnvUtil {
     }
   }
 
+  static underlyingUrl(endpointIndex, subgraphName) {
+    const subgraphIndex = ENABLED_SUBGRAPHS.indexOf(subgraphName);
+    if (subgraphIndex === -1) {
+      throw new Error(`Unsupported subgraph: ${subgraphName}`);
+    }
+    return ENDPOINTS[endpointIndex].replace('<sg-id>', ENDPOINT_SG_IDS[endpointIndex][subgraphIndex]);
+  }
+
   static endpointsForSubgraph(subgraphName) {
     const subgraphIndex = ENABLED_SUBGRAPHS.indexOf(subgraphName);
     const validIndices = [];
@@ -46,14 +53,31 @@ class EnvUtil {
     }
     return validIndices;
   }
+
+  // Getters for actual env values
+  static getEndpoints() {
+    return ENDPOINTS;
+  }
+
+  static getEndpointRateLimits() {
+    return ENDPOINT_RATE_LIMITS;
+  }
+
+  static getEndpointUtilizationPreference() {
+    return ENDPOINT_UTILIZATION_PREFERENCE;
+  }
+
+  static getEnabledSubgraphs() {
+    return ENABLED_SUBGRAPHS;
+  }
+
+  static getEndpointSgIds() {
+    return ENDPOINT_SG_IDS;
+  }
+
+  static getEvmRpcUrls() {
+    return EVM_RPC_URLS;
+  }
 }
 
-module.exports = {
-  ENDPOINTS,
-  ENDPOINT_RATE_LIMITS,
-  ENDPOINT_UTILIZATION_PREFERENCE,
-  ENABLED_SUBGRAPHS,
-  ENDPOINT_SG_IDS,
-  EVM_RPC_URLS,
-  EnvUtil
-};
+module.exports = EnvUtil;
