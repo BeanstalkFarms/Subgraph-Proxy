@@ -36,6 +36,9 @@ class EnvUtil {
   }
 
   static underlyingUrl(endpointIndex, subgraphName) {
+    if (!ENDPOINTS[endpointIndex]) {
+      throw new Error(`Unsupported endpoint: ${endpointIndex}`);
+    }
     const subgraphIndex = ENABLED_SUBGRAPHS.indexOf(subgraphName);
     if (subgraphIndex === -1) {
       throw new Error(`Unsupported subgraph: ${subgraphName}`);

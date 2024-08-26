@@ -153,6 +153,7 @@ class SubgraphProxyService {
         for (const failedIndex of failedEndpoints) {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
+        DiscordUtil.sendWebhookMessage(`All endpoints are offline for '${subgraphName}'.`);
         throw new EndpointError('Subgraph is unable to process this request and may be offline.');
       }
 
@@ -163,7 +164,7 @@ class SubgraphProxyService {
     } else {
       // No endpoint was even attempted
       DiscordUtil.sendWebhookMessage(
-        `Rate limit exceeded on all subgraphs for '${subgraphName}'. A request was dropped`
+        `Rate limit exceeded on all endpoints for '${subgraphName}'. A request was dropped`
       );
       throw new RateLimitError(
         'The server is currently experiencing high traffic and cannot process your request. Please try again later.'
