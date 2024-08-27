@@ -14,3 +14,5 @@ This project seeks to mitigate a few different unsolved issues when it comes to 
 The most critical of these issues is the first, but the others are certainly a nuisance.
 
 The above issues are resolved by multiplexing subgraph requests across multiple available deployment environments, and will use results from whichever deployment can satisfy all of the above requirements at the time the query is made.
+
+Included is also a graphiql explorer including the explorer schema plugin.
