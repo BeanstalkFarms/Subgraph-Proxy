@@ -121,7 +121,23 @@ class SubgraphProxyService {
 
   // Throws an exception based on the failure reason
   static async _throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints) {
-    if (failedEndpoints.length > 0) {
+    if (failedEndpoints.length + unsyncdEndpoints.length < EnvUtil.endpointsForSubgraph(subgraphName).length) {
+      // If any of the endpoints were not attempted, assume this is a rate limiting issue.
+      // This is preferable to performing the status check on a failing endpoint,
+      // while another endpoint is presumably alive and actively servicing requests.
+      if (failedEndpoints.length + unsyncdEndpoints.length === 0) {
+        DiscordUtil.sendWebhookMessage(
+          `Rate limit exceeded on all endpoints for ${subgraphName}. No endpoints attempted to service this request.`
+        );
+      } else {
+        DiscordUtil.sendWebhookMessage(
+          `Rate limit exceeded on endpoint(s) for ${subgraphName}. At least one endpoint tried and failed this request.`
+        );
+      }
+      throw new RateLimitError(
+        'The server is currently experiencing high traffic and cannot process your request. Please try again later.'
+      );
+    } else if (failedEndpoints.length > 0) {
       if (new Date() - SubgraphState.getLatestSubgraphErrorCheck(subgraphName) < 60 * 1000) {
         if (SubgraphState.allHaveErrors(subgraphName)) {
           throw new EndpointError('Subgraph is unable to process this request and may be offline.');
@@ -140,7 +156,7 @@ class SubgraphProxyService {
         if (fatalError) {
           if (!SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
             DiscordUtil.sendWebhookMessage(
-              `A fatal error was encountered for subgraph '${subgraphName}': ${fatalError}`,
+              `A fatal error was encountered for ${subgraphName} e-${endpointIndex}: ${fatalError}`,
               true
             );
             SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, true);
@@ -148,7 +164,7 @@ class SubgraphProxyService {
         } else {
           hasErrors = false;
           if (SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
-            DiscordUtil.sendWebhookMessage(`Subgraph '${subgraphName}': has recovered.`, true);
+            DiscordUtil.sendWebhookMessage(`${subgraphName} e-${endpointIndex} has recovered.`, true);
             SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, false);
           }
         }
@@ -164,7 +180,7 @@ class SubgraphProxyService {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
         if (!fatalError) {
-          DiscordUtil.sendWebhookMessage(`Failed to retrieve e-${endpointIndex} status for '${subgraphName}'.`, true);
+          console.log(`Failed to retrieve status for ${subgraphName} e-${endpointIndex}.`);
         }
         throw new EndpointError('Subgraph is unable to process this request and may be offline.');
       } else {
@@ -173,14 +189,6 @@ class SubgraphProxyService {
       }
     } else if (unsyncdEndpoints.length > 0) {
       throw new EndpointError('Subgraph has not yet indexed up to the latest block.');
-    } else {
-      // No endpoint was even attempted
-      DiscordUtil.sendWebhookMessage(
-        `Rate limit exceeded on all endpoints for '${subgraphName}'. A request was dropped.`
-      );
-      throw new RateLimitError(
-        'The server is currently experiencing high traffic and cannot process your request. Please try again later.'
-      );
     }
   }
 }
