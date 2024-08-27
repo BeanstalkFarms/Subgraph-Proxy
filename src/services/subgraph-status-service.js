@@ -20,10 +20,9 @@ class SubgraphStatusService {
     }
   }
 
-  // TODO: these need to use the bottleneck limiter
   static async _getAlchemyStatus(endpointIndex, subgraphName) {
     const statusUrl = EnvUtil.underlyingUrl(endpointIndex, subgraphName).replace('/api', '/status');
-    const status = BottleneckLimiters.schedule(endpointIndex, async () => await axios.post(statusUrl));
+    const status = await BottleneckLimiters.schedule(endpointIndex, async () => await axios.post(statusUrl));
     return status;
   }
 
@@ -36,7 +35,7 @@ class SubgraphStatusService {
       );
     }
 
-    const status = BottleneckLimiters.schedule(
+    const status = await BottleneckLimiters.schedule(
       endpointIndex,
       async () =>
         await axios.post(statusUrl, {
