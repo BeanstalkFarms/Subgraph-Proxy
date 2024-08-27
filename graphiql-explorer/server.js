@@ -12,6 +12,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log('default', process.env.REACT_APP_DEFAULT_SUBGRAPH);
   console.log(`GraphiQL Explorer app listening at http://localhost:${port}`);
 });

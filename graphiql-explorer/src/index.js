@@ -21,19 +21,19 @@ const setEndpoint = (url) => {
     defaultEditorToolsVisibility: true
   });
 
+  console.log('Using endpoint', url);
   ReactDOM.render(graphiql, document.getElementById('graphiql'));
 };
 
 if (
   window.location.pathname === '/' ||
   window.location.pathname === '' ||
-  window.location.pathname === LOCATION_PREFIX ||
-  window.location.pathname === LOCATION_PREFIX + '/'
+  window.location.pathname === process.env.REACT_APP_LOCATION_PREFIX ||
+  window.location.pathname === process.env.REACT_APP_LOCATION_PREFIX + '/'
 ) {
   window.history.replaceState({}, '', DEFAULT_LOCATION);
 }
 
 const explorer = explorerPlugin();
+console.log(window.location.pathname);
 setEndpoint(`https://${process.env.REACT_APP_DOMAIN}${window.location.pathname.replace(LOCATION_PREFIX, '')}`);
-
-console.log('default', process.env.REACT_APP_DEFAULT_SUBGRAPH);
