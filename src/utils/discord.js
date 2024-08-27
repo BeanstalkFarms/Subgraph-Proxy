@@ -8,8 +8,8 @@ class DiscordUtil {
   static lastMessageTime;
 
   // Sends a discord webhook message if any channels are configured here
-  static async sendWebhookMessage(message) {
-    if (this.lastMessageTime && new Date() - this.lastMessageTime < MIN_MESSAGE_FREQUENCY) {
+  static async sendWebhookMessage(message, priority = false) {
+    if (!priority && this.lastMessageTime && new Date() - this.lastMessageTime < MIN_MESSAGE_FREQUENCY) {
       // Ignore this message, but log in server
       console.log(
         `[DiscordUtil] Attempted to send a message, but too many messages have been sent recently:\n ==> ${message}`

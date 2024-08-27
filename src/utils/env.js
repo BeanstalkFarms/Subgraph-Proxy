@@ -3,6 +3,7 @@ require('dotenv').config();
 
 // Need to replace "<sg>" with the name/id of the subgraph to use
 const ENDPOINTS = process.env.ENDPOINTS?.split('|');
+const ENDPOINT_TYPES = process.env.ENDPOINT_TYPES?.split('|');
 const ENDPOINT_RATE_LIMITS = process.env.ENDPOINT_RATE_LIMITS?.split('|').map((sg) =>
   sg.split(',').map((s) => parseInt(s))
 );
@@ -36,6 +37,9 @@ class EnvUtil {
   }
 
   static underlyingUrl(endpointIndex, subgraphName) {
+    if (!ENDPOINTS[endpointIndex]) {
+      throw new Error(`Unsupported endpoint: ${endpointIndex}`);
+    }
     const subgraphIndex = ENABLED_SUBGRAPHS.indexOf(subgraphName);
     if (subgraphIndex === -1) {
       throw new Error(`Unsupported subgraph: ${subgraphName}`);
@@ -57,6 +61,10 @@ class EnvUtil {
   // Getters for actual env values
   static getEndpoints() {
     return ENDPOINTS;
+  }
+
+  static getEndpointTypes() {
+    return ENDPOINT_TYPES;
   }
 
   static getEndpointRateLimits() {

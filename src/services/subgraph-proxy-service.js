@@ -1,4 +1,3 @@
-const { gql } = require('graphql-request');
 const SubgraphClients = require('../datasources/subgraph-clients');
 const EndpointBalanceUtil = require('../utils/load/endpoint-balance');
 const GraphqlQueryUtil = require('../utils/query-manipulation');
@@ -10,6 +9,7 @@ const ChainState = require('../utils/state/chain');
 const LoggingUtil = require('../utils/logging');
 const EnvUtil = require('../utils/env');
 const DiscordUtil = require('../utils/discord');
+const SubgraphStatusService = require('./subgraph-status-service');
 
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
@@ -130,40 +130,53 @@ class SubgraphProxyService {
         }
       }
 
-      // All endpoints failed. Attempt a known safe query to see if the subgraphs are down or the client
-      // constructed a bad query.
+      // All endpoints failed. Check status to see if subgraphs are down or the client constructed a bad query.
+      let hasErrors = true;
+      let fatalError;
+      const endpointIndex = await EndpointBalanceUtil.chooseEndpoint(subgraphName);
       try {
         SubgraphState.setLatestSubgraphErrorCheck(subgraphName);
-        const client = await SubgraphClients.makeCallableClient(
-          await EndpointBalanceUtil.chooseEndpoint(subgraphName),
-          subgraphName
-        );
-        await client(gql`
-          {
-            _meta {
-              deployment
-            }
+        fatalError = await SubgraphStatusService.getFatalError(endpointIndex, subgraphName);
+        if (fatalError) {
+          if (!SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
+            DiscordUtil.sendWebhookMessage(
+              `A fatal error was encountered for subgraph '${subgraphName}': ${fatalError}`,
+              true
+            );
+            SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, true);
           }
-        `);
+        } else {
+          hasErrors = false;
+          if (SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
+            DiscordUtil.sendWebhookMessage(`Subgraph '${subgraphName}': has recovered.`, true);
+            SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, false);
+          }
+        }
       } catch (e) {
         if (e instanceof RateLimitError) {
           throw e;
         }
-        // The endpoint cannot process a basic request, assume the user query was ok
+      }
+
+      if (hasErrors) {
+        // Assume the client query was not the issue
         for (const failedIndex of failedEndpoints) {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
+        if (!fatalError) {
+          DiscordUtil.sendWebhookMessage(`Failed to retrieve e-${endpointIndex} status for '${subgraphName}'.`, true);
+        }
         throw new EndpointError('Subgraph is unable to process this request and may be offline.');
+      } else {
+        // The endpoint is responsive and therefore the user constructed a bad request
+        throw new RequestError(errors[0].message);
       }
-
-      // The endpoint is responsive and therefore the user constructed a bad request
-      throw new RequestError(errors[0].message);
     } else if (unsyncdEndpoints.length > 0) {
       throw new EndpointError('Subgraph has not yet indexed up to the latest block.');
     } else {
       // No endpoint was even attempted
       DiscordUtil.sendWebhookMessage(
-        `Rate limit exceeded on all subgraphs for '${subgraphName}'. A request was dropped`
+        `Rate limit exceeded on all endpoints for '${subgraphName}'. A request was dropped.`
       );
       throw new RateLimitError(
         'The server is currently experiencing high traffic and cannot process your request. Please try again later.'
