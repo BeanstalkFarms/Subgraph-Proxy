@@ -19,6 +19,8 @@ class SubgraphState {
   // Boolean indicating the last known status of this endpoint. An "error" is defined as
   // (1) the subgraph crashed, (2) the subgraph is on a version with an incompatible schema, and queries are failing.
   static _endpointHasErrors = {};
+  // Only true when the subgraph implementation's status endpoint indicates a fatal error.
+  static _endpointHasFatalErrors = {};
   // Timestamps of notable events on this endpoint: errors, out of sync, and stale version.
   // The timestamp is updated any time one of these is encountered.
   static _endpointTimestamps = {};
@@ -84,6 +86,14 @@ class SubgraphState {
       this.setLastEndpointErrorTimestamp(endpointIndex, subgraphName);
     }
     this._endpointHasErrors[`${endpointIndex}-${subgraphName}`] = value;
+  }
+
+  static endpointHasFatalErrors(endpointIndex, subgraphName) {
+    return this._endpointHasFatalErrors[`${endpointIndex}-${subgraphName}`];
+  }
+  static setEndpointHasFatalErrors(endpointIndex, subgraphName, value) {
+    this._endpointHasFatalErrors[`${endpointIndex}-${subgraphName}`] = value;
+    this.setEndpointHasErrors(endpointIndex, subgraphName, value);
   }
 
   static getLastEndpointUsageTimestamp(endpointIndex, subgraphName) {

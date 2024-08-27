@@ -3,6 +3,7 @@ require('dotenv').config();
 
 // Need to replace "<sg>" with the name/id of the subgraph to use
 const ENDPOINTS = process.env.ENDPOINTS?.split('|');
+const ENDPOINT_TYPES = process.env.ENDPOINTS?.split('|');
 const ENDPOINT_RATE_LIMITS = process.env.ENDPOINT_RATE_LIMITS?.split('|').map((sg) =>
   sg.split(',').map((s) => parseInt(s))
 );
@@ -60,6 +61,10 @@ class EnvUtil {
   // Getters for actual env values
   static getEndpoints() {
     return ENDPOINTS;
+  }
+
+  static getEndpointTypes() {
+    ENDPOINT_TYPES;
   }
 
   static getEndpointRateLimits() {
