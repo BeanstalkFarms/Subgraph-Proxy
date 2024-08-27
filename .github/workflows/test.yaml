@@ -3,6 +3,8 @@ name: Test
 on:
   pull_request:
     types: [opened, synchronize]
+    paths:
+      - 'proxy-api/**'
 
 jobs:
   test:
@@ -18,6 +20,8 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        working-directory: proxy-api
 
       - name: Run tests
         run: npm test
+        working-directory: proxy-api

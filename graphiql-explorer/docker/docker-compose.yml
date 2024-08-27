@@ -6,6 +6,4 @@ services:
     image: graphiql-explorer:${DOCKER_ENV}
     ports:
       - "4000:4000"
-    env_file:
-      - ./inbuilt/.env
     restart: on-failure
