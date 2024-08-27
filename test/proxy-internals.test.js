@@ -97,7 +97,7 @@ describe('Subgraph Proxy - Core', () => {
         .mockImplementationOnce(async () => async () => {
           throw new Error('Generic failure reason');
         });
-      jest.spyOn(SubgraphStatusService, 'getFatalError').mockResolvedValue(undefined);
+      jest.spyOn(SubgraphStatusService, 'checkFatalError').mockResolvedValue(undefined);
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
       expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
@@ -110,7 +110,7 @@ describe('Subgraph Proxy - Core', () => {
       jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementation(async () => async () => {
         throw new Error('Generic failure reason');
       });
-      jest.spyOn(SubgraphStatusService, 'getFatalError').mockResolvedValue('Fatal error string');
+      jest.spyOn(SubgraphStatusService, 'checkFatalError').mockResolvedValue('Fatal error string');
 
       await expect(SubgraphProxyService._getQueryResult('beanstalk', 'graphql query')).rejects.toThrow(EndpointError);
       expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);

@@ -2,21 +2,59 @@ const axios = require('axios');
 const EnvUtil = require('../utils/env');
 const SubgraphState = require('../utils/state/subgraph');
 const BottleneckLimiters = require('../utils/load/bottleneck-limiters');
+const DiscordUtil = require('../utils/discord');
 
 class SubgraphStatusService {
   // If there is any fatal error with this deployment, return the reason message.
   // Underlying implementation is different depending on the subgraph provider.
-  static async getFatalError(endpointIndex, subgraphName) {
+  static async checkFatalError(endpointIndex, subgraphName) {
     const endpointType = EnvUtil.getEndpointTypes()[endpointIndex];
+    let fatalError;
     switch (endpointType) {
       case 'alchemy':
         const alchemyStatus = await this._getAlchemyStatus(endpointIndex, subgraphName);
-        return alchemyStatus.data.data.indexingStatusForCurrentVersion.fatalError?.message;
+        fatalError = alchemyStatus.data.data.indexingStatusForCurrentVersion.fatalError?.message;
+        break;
       case 'graph':
         const graphStatus = await this._getGraphStatus(endpointIndex, subgraphName);
-        return graphStatus.data.data.indexingStatuses[0].fatalError?.message;
+        fatalError = graphStatus.data.data.indexingStatuses[0].fatalError?.message;
+        break;
       default:
         throw new Error(`Unrecognized endpoint type '${endpointType}'.`);
+    }
+
+    // Handle related state/messaging
+    if (fatalError) {
+      if (!SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
+        DiscordUtil.sendWebhookMessage(
+          `A fatal error was encountered for ${subgraphName} e-${endpointIndex}: ${fatalError}`,
+          true
+        );
+        SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, true);
+      }
+    } else {
+      if (SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
+        DiscordUtil.sendWebhookMessage(`${subgraphName} e-${endpointIndex} has recovered.`, true);
+        SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, false);
+      }
+    }
+    return fatalError;
+  }
+
+  // Perform an error check if utilization is low. There is no need to do the check when
+  // utilization is high, since regular api requests perform the check also.
+  static async checkAll() {
+    for (const subgraphName of EnvUtil.getEnabledSubgraphs()) {
+      for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
+        const utilization = await BottleneckLimiters.getUtilization(endpointIndex);
+        if (utilization <= EnvUtil.getStatusCheckMaxUtilization()) {
+          try {
+            await this.checkFatalError(endpointIndex, subgraphName);
+          } catch (e) {
+            console.log(`Failed to retrieve status for ${subgraphName} e-${endpointIndex}.`);
+          }
+        }
+      }
     }
   }
 

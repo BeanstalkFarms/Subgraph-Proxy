@@ -14,6 +14,8 @@ const ENABLED_SUBGRAPHS = process.env.ENABLED_SUBGRAPHS?.split(',');
 const ENDPOINT_SG_IDS = process.env.ENDPOINT_SG_IDS?.split('|').map((sg) => sg.split(','));
 const EVM_RPC_URLS = process.env.EVM_RPC_URLS?.split(',');
 
+const ENABLED_CRON_JOBS = process.env.ENABLED_CRON_JOBS?.split(',');
+
 // Validation
 for (const endpointIds of ENDPOINT_SG_IDS) {
   if (endpointIds.length !== ENABLED_SUBGRAPHS.length) {
@@ -85,6 +87,14 @@ class EnvUtil {
 
   static getEvmRpcUrls() {
     return EVM_RPC_URLS;
+  }
+
+  static getEnabledCronJobs() {
+    return ENABLED_CRON_JOBS?.filter((s) => s.length > 0) ?? [];
+  }
+
+  static getStatusCheckMaxUtilization() {
+    return process.env.STATUS_CHECK_MAX_UTILIZATION;
   }
 }
 

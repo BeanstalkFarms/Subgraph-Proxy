@@ -152,21 +152,9 @@ class SubgraphProxyService {
       const endpointIndex = await EndpointBalanceUtil.chooseEndpoint(subgraphName);
       try {
         SubgraphState.setLatestSubgraphErrorCheck(subgraphName);
-        fatalError = await SubgraphStatusService.getFatalError(endpointIndex, subgraphName);
-        if (fatalError) {
-          if (!SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
-            DiscordUtil.sendWebhookMessage(
-              `A fatal error was encountered for ${subgraphName} e-${endpointIndex}: ${fatalError}`,
-              true
-            );
-            SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, true);
-          }
-        } else {
+        fatalError = await SubgraphStatusService.checkFatalError(endpointIndex, subgraphName);
+        if (!fatalError) {
           hasErrors = false;
-          if (SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
-            DiscordUtil.sendWebhookMessage(`${subgraphName} e-${endpointIndex} has recovered.`, true);
-            SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, false);
-          }
         }
       } catch (e) {
         if (e instanceof RateLimitError) {

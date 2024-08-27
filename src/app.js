@@ -4,7 +4,13 @@ const Koa = require('koa');
 const bodyParser = require('koa-bodyparser');
 const cors = require('@koa/cors');
 
+const { activateJobs } = require('./scheduled/cron-schedule.js');
+const EnvUtil = require('./utils/env.js');
+
 async function appStartup() {
+  // Activate whichever cron jobs are configured, if any
+  activateJobs(EnvUtil.getEnabledCronJobs());
+
   const app = new Koa();
 
   app.use(bodyParser());
