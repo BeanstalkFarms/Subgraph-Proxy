@@ -127,11 +127,11 @@ class SubgraphProxyService {
       // while another endpoint is presumably alive and actively servicing requests.
       if (failedEndpoints.length + unsyncdEndpoints.length === 0) {
         DiscordUtil.sendWebhookMessage(
-          `Rate limit exceeded on all endpoints for '${subgraphName}'. No endpoints attempted to service this request.`
+          `Rate limit exceeded on all endpoints for ${subgraphName}. No endpoints attempted to service this request.`
         );
       } else {
         DiscordUtil.sendWebhookMessage(
-          `Rate limit exceeded on endpoint(s) for '${subgraphName}'. At least one endpoint tried and failed this request.`
+          `Rate limit exceeded on endpoint(s) for ${subgraphName}. At least one endpoint tried and failed this request.`
         );
       }
       throw new RateLimitError(
@@ -156,7 +156,7 @@ class SubgraphProxyService {
         if (fatalError) {
           if (!SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
             DiscordUtil.sendWebhookMessage(
-              `A fatal error was encountered for subgraph '${subgraphName}': ${fatalError}`,
+              `A fatal error was encountered for ${subgraphName} e-${endpointIndex}: ${fatalError}`,
               true
             );
             SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, true);
@@ -164,7 +164,7 @@ class SubgraphProxyService {
         } else {
           hasErrors = false;
           if (SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
-            DiscordUtil.sendWebhookMessage(`Subgraph '${subgraphName}': has recovered.`, true);
+            DiscordUtil.sendWebhookMessage(`${subgraphName} e-${endpointIndex} has recovered.`, true);
             SubgraphState.setEndpointHasFatalErrors(endpointIndex, subgraphName, false);
           }
         }
@@ -180,7 +180,7 @@ class SubgraphProxyService {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
         if (!fatalError) {
-          DiscordUtil.sendWebhookMessage(`Failed to retrieve e-${endpointIndex} status for '${subgraphName}'.`, true);
+          console.log(`Failed to retrieve status for ${subgraphName} e-${endpointIndex}.`);
         }
         throw new EndpointError('Subgraph is unable to process this request and may be offline.');
       } else {
