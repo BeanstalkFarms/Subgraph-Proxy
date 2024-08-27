@@ -9,24 +9,24 @@ class SubgraphStatusService {
     const endpointType = EnvUtil.getEndpointTypes()[endpointIndex];
     switch (endpointType) {
       case 'alchemy':
-        const alchemyStatus = await this.getAlchemyStatus(endpointIndex, subgraphName);
-        return alchemyStatus.data.indexingStatusForCurrentVersion.fatalError?.message;
+        const alchemyStatus = await this._getAlchemyStatus(endpointIndex, subgraphName);
+        return alchemyStatus.data.data.indexingStatusForCurrentVersion.fatalError?.message;
       case 'graph':
-        const graphStatus = await this.getGraphStatus(endpointIndex, subgraphName);
-        return graphStatus.data.indexingStatuses[0].fatalError?.message;
+        const graphStatus = await this._getGraphStatus(endpointIndex, subgraphName);
+        return graphStatus.data.data.indexingStatuses[0].fatalError?.message;
       default:
         throw new Error(`Unrecognized endpoint type '${endpointType}'.`);
     }
   }
 
   // TODO: these need to use the bottleneck limiter
-  static async getAlchemyStatus(endpointIndex, subgraphName) {
+  static async _getAlchemyStatus(endpointIndex, subgraphName) {
     const statusUrl = EnvUtil.underlyingUrl(endpointIndex, subgraphName).replace('/api', '/status');
     const status = await axios.post(statusUrl);
     return status;
   }
 
-  static async getGraphStatus(endpointIndex, subgraphName) {
+  static async _getGraphStatus(endpointIndex, subgraphName) {
     const statusUrl = 'https://api.thegraph.com/index-node/graphql';
     const deploymentHash = SubgraphState.getEndpointDeployment(endpointIndex, subgraphName);
     if (!deploymentHash) {

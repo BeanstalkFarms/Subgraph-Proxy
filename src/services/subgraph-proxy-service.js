@@ -133,9 +133,9 @@ class SubgraphProxyService {
       // All endpoints failed. Check status to see if subgraphs are down or the client constructed a bad query.
       let hasErrors = true;
       let fatalError;
+      const endpointIndex = await EndpointBalanceUtil.chooseEndpoint(subgraphName);
       try {
         SubgraphState.setLatestSubgraphErrorCheck(subgraphName);
-        const endpointIndex = await EndpointBalanceUtil.chooseEndpoint(subgraphName);
         fatalError = await SubgraphStatusService.getFatalError(endpointIndex, subgraphName);
         if (fatalError) {
           if (!SubgraphState.endpointHasFatalErrors(endpointIndex, subgraphName)) {
@@ -164,7 +164,7 @@ class SubgraphProxyService {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
         if (!fatalError) {
-          DiscordUtil.sendWebhookMessage(`Failed to retrieve status for '${subgraphName}'.`, true);
+          DiscordUtil.sendWebhookMessage(`Failed to retrieve e-${endpointIndex} status for '${subgraphName}'.`, true);
         }
         throw new EndpointError('Subgraph is unable to process this request and may be offline.');
       } else {

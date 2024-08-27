@@ -12,6 +12,7 @@ const beanBehindResponse = require('./mock-responses/beanBehind.json');
 const beanNewDeploymentResponse = require('./mock-responses/beanNewDeployment.json');
 const RateLimitError = require('../src/error/rate-limit-error');
 const EnvUtil = require('../src/utils/env');
+const SubgraphStatusService = require('../src/services/subgraph-status-service');
 const responseBlock = beanResponse._meta.block.number;
 const responseBehindBlock = beanBehindResponse._meta.block.number;
 const newDeploymentBlock = beanNewDeploymentResponse._meta.block.number;
@@ -95,9 +96,8 @@ describe('Subgraph Proxy - Core', () => {
         })
         .mockImplementationOnce(async () => async () => {
           throw new Error('Generic failure reason');
-        })
-        // Both endpoints failed the user request but succeed the simple request
-        .mockResolvedValueOnce(async () => beanResponse);
+        });
+      jest.spyOn(SubgraphStatusService, 'getFatalError').mockResolvedValue(undefined);
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
       expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
@@ -109,7 +109,8 @@ describe('Subgraph Proxy - Core', () => {
     test('Both endpoints fail - endpoint error', async () => {
       jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementation(async () => async () => {
         throw new Error('Generic failure reason');
-      }); // This implementation will be used 3 times, all are failure
+      });
+      jest.spyOn(SubgraphStatusService, 'getFatalError').mockResolvedValue('Fatal error string');
 
       await expect(SubgraphProxyService._getQueryResult('beanstalk', 'graphql query')).rejects.toThrow(EndpointError);
       expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(4);
