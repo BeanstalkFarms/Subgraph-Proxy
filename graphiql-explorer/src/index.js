@@ -6,8 +6,8 @@ import { createGraphiQLFetcher } from '@graphiql/toolkit';
 import { explorerPlugin } from '@graphiql/plugin-explorer';
 
 // The prefix is set according to nginx configuration but is relevant here as the location is used directly.
-const LOCATION_PREFIX = process.env.REACT_APP_LOCATION_PREFIX + '/';
-const DEFAULT_LOCATION = LOCATION_PREFIX + process.env.REACT_APP_DEFAULT_SUBGRAPH;
+const LOCATION_PREFIX = '/' + process.env.REACT_APP_LOCATION_PREFIX;
+const DEFAULT_LOCATION = LOCATION_PREFIX + '/' + process.env.REACT_APP_DEFAULT_SUBGRAPH;
 
 import 'graphiql/graphiql.css';
 import '@graphiql/plugin-explorer/dist/style.css';
@@ -21,6 +21,7 @@ const setEndpoint = (url) => {
     defaultEditorToolsVisibility: true
   });
 
+  console.log('Using endpoint', url);
   ReactDOM.render(graphiql, document.getElementById('graphiql'));
 };
 
@@ -35,5 +36,3 @@ if (
 
 const explorer = explorerPlugin();
 setEndpoint(`https://${process.env.REACT_APP_DOMAIN}${window.location.pathname.replace(LOCATION_PREFIX, '')}`);
-
-console.log('default', process.env.REACT_APP_DEFAULT_SUBGRAPH);
