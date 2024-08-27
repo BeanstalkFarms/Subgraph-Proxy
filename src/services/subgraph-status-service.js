@@ -1,6 +1,7 @@
 const axios = require('axios');
 const EnvUtil = require('../utils/env');
 const SubgraphState = require('../utils/state/subgraph');
+const BottleneckLimiters = require('../utils/load/bottleneck-limiters');
 
 class SubgraphStatusService {
   // If there is any fatal error with this deployment, return the reason message.
@@ -22,7 +23,7 @@ class SubgraphStatusService {
   // TODO: these need to use the bottleneck limiter
   static async _getAlchemyStatus(endpointIndex, subgraphName) {
     const statusUrl = EnvUtil.underlyingUrl(endpointIndex, subgraphName).replace('/api', '/status');
-    const status = await axios.post(statusUrl);
+    const status = BottleneckLimiters.schedule(endpointIndex, async () => await axios.post(statusUrl));
     return status;
   }
 
@@ -35,14 +36,18 @@ class SubgraphStatusService {
       );
     }
 
-    const status = await axios.post(statusUrl, {
-      operationName: 'SubgraphIndexingStatusFatalError',
-      variables: {
-        deploymentIds: [deploymentHash]
-      },
-      query:
-        'query SubgraphIndexingStatusFatalError($deploymentIds: [String!]!) {\n  indexingStatuses(subgraphs: $deploymentIds) {\n    health\n    fatalError {\n      message\n      block {\n        number\n        hash\n        __typename\n      }\n      handler\n      __typename\n    }\n    __typename\n  }\n}'
-    });
+    const status = BottleneckLimiters.schedule(
+      endpointIndex,
+      async () =>
+        await axios.post(statusUrl, {
+          operationName: 'SubgraphIndexingStatusFatalError',
+          variables: {
+            deploymentIds: [deploymentHash]
+          },
+          query:
+            'query SubgraphIndexingStatusFatalError($deploymentIds: [String!]!) {\n  indexingStatuses(subgraphs: $deploymentIds) {\n    health\n    fatalError {\n      message\n      block {\n        number\n        hash\n        __typename\n      }\n      handler\n      __typename\n    }\n    __typename\n  }\n}'
+        })
+    );
     return status;
   }
 }

@@ -32,11 +32,16 @@ class BottleneckLimiters {
 
   static async wrap(endpointIndex, fnToWrap) {
     if (await this.isBurstDepleted(endpointIndex)) {
-      // This shouldn't be executed if the EndpointBalanceUtil is working, though is in theory
-      // possible in times of many concurrent requests.
       throw new RateLimitError(`Exceeded rate limit for e-${endpointIndex}.`);
     }
     return this.bottleneckLimiters[endpointIndex].wrap(fnToWrap);
+  }
+
+  static async schedule(endpointIndex, fnToSchedule) {
+    if (await this.isBurstDepleted(endpointIndex)) {
+      throw new RateLimitError(`Exceeded rate limit for e-${endpointIndex}.`);
+    }
+    return await this.bottleneckLimiters[endpointIndex].schedule(fnToSchedule);
   }
 
   static async isBurstDepleted(endpointIndex) {
