@@ -62,7 +62,7 @@ class SubgraphProxyService {
         if (e instanceof RateLimitError) {
           break; // Will likely result in rethrowing a different RateLimitError
         }
-        if (await this._isFutureBlockException(e, endpointIndex, subgraphName)) {
+        if (await this._isRetryableBlockException(e, endpointIndex, subgraphName)) {
           continue;
         } else {
           failedEndpoints.push(endpointIndex);
@@ -94,18 +94,32 @@ class SubgraphProxyService {
     await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
   }
 
-  // Identifies whether the failure is due to response being behind an explicitly requested block.
+  // Identifies whether the failure is recoverable, due to response being behind an explicitly requested block.
+  // There is also a type of block exception where the requested block is earlier than the start of indexing.
+  // Sample error messages:
   // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
-  static async _isFutureBlockException(e, endpointIndex, subgraphName) {
-    const match = e.message.match(/block number (\d+) is therefore/);
-    if (match) {
-      const blockNumber = parseInt(match[1]);
+  // "only has data starting at block number 500 and data for block number 20582045 is therefore not yet available"
+  static async _isRetryableBlockException(e, endpointIndex, subgraphName) {
+    const matchFuture = e.message.match(/indexed up to block number \d+ and data for block number (\d+) is therefore/);
+    if (matchFuture) {
+      const requestedBlock = parseInt(matchFuture[1]);
       const chain = SubgraphState.getEndpointChain(endpointIndex, subgraphName);
-      if (blockNumber > (await ChainState.getChainHead(chain)) + 5) {
+      if (requestedBlock > (await ChainState.getChainHead(chain)) + 5) {
         // User requested a future block. This is not allowed
-        throw new RequestError(`The requested block ${blockNumber} is invalid for chain ${chain}.`);
+        throw new RequestError(`The requested block ${requestedBlock} is invalid for chain ${chain}.`);
       }
       return true;
+    }
+
+    const matchPast = e.message.match(
+      /only has data starting at block number (\d+) and data for block number (\d+) is therefore/
+    );
+    if (matchPast) {
+      const earliestBlock = parseInt(matchPast[1]);
+      const requestedBlock = parseInt(matchPast[2]);
+      throw new RequestError(
+        `The requested block ${requestedBlock} is smaller than the earliest accessible block for ${subgraphName}: ${earliestBlock}.`
+      );
     }
     return false;
   }

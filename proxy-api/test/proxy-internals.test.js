@@ -137,10 +137,21 @@ describe('Subgraph Proxy - Core', () => {
       expect(endpointArgCapture[1]).toEqual(['bean', [0], [0], null]);
       expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1], null]);
     });
+    test('User explicitly queries far past block', async () => {
+      jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementationOnce(async () => async () => {
+        throw new Error(
+          `only has data starting at block number 500 and data for block number ${responseBlock + 1000} is therefore not yet available`
+        );
+      });
 
+      await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
+      expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(1);
+    });
     test('User explicitly queries far future block', async () => {
       jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementationOnce(async () => async () => {
-        throw new Error(`block number ${responseBlock + 1000} is therefore not yet available`);
+        throw new Error(
+          `has only indexed up to block number 1 and data for block number ${responseBlock + 1000} is therefore not yet available`
+        );
       });
 
       await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).rejects.toThrow(RequestError);
@@ -151,10 +162,14 @@ describe('Subgraph Proxy - Core', () => {
       jest
         .spyOn(SubgraphClients, 'makeCallableClient')
         .mockImplementationOnce(async () => async () => {
-          throw new Error(`block number ${responseBlock} is therefore not yet available`);
+          throw new Error(
+            `has only indexed up to block number 20580123 and data for block number ${responseBlock} is therefore not yet available`
+          );
         })
         .mockImplementationOnce(async () => async () => {
-          throw new Error(`block number ${responseBlock} is therefore not yet available`);
+          throw new Error(
+            `has only indexed up to block number 20580123 and data for block number ${responseBlock} is therefore not yet available`
+          );
         })
         .mockResolvedValueOnce(async () => beanResponse);
 
