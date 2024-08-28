@@ -127,6 +127,16 @@ class SubgraphState {
     this._endpointTimestamps[`${endpointIndex}-${subgraphName}`][timestampName] = new Date();
   }
 
+  // Updates persistent states upon a successful request
+  static async updateStatesWithResult(endpointIndex, subgraphName, queryResult) {
+    SubgraphState.setLastEndpointUsageTimestamp(endpointIndex, subgraphName);
+    SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
+    SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
+    SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
+    SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
+    SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
+  }
+
   // Derived functions
   static getLatestVersion(subgraphName) {
     let versions = [];

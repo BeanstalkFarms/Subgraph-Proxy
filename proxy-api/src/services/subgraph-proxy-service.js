@@ -1,6 +1,6 @@
 const SubgraphClients = require('../datasources/subgraph-clients');
 const EndpointBalanceUtil = require('../utils/load/endpoint-balance');
-const GraphqlQueryUtil = require('../utils/query-manipulation');
+const GraphqlQueryUtil = require('../utils/graph-query');
 const EndpointError = require('../error/endpoint-error');
 const RequestError = require('../error/request-error');
 const RateLimitError = require('../error/rate-limit-error');
@@ -34,20 +34,39 @@ class SubgraphProxyService {
   }
 
   // Gets the result for this query from one of the available endpoints.
-  // Actual proxy/load balancing orchestration occurs here.
   static async _getQueryResult(subgraphName, query) {
     const startTime = new Date();
+    const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
     const failedEndpoints = [];
     const unsyncdEndpoints = [];
     const endpointHistory = [];
-    const errors = [];
+    try {
+      const result = await this._getReliableResult(
+        subgraphName,
+        query,
+        failedEndpoints,
+        unsyncdEndpoints,
+        endpointHistory
+      );
+      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory);
+      return result;
+    } catch (e) {
+      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory);
+      throw e;
+    }
+  }
 
+  // Returns a reliable query result with respect to response consistency and api availability.
+  static async _getReliableResult(subgraphName, query, failedEndpoints, unsyncdEndpoints, endpointHistory) {
+    const errors = [];
+    const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
     while (
       (endpointIndex = await EndpointBalanceUtil.chooseEndpoint(
         subgraphName,
         [...failedEndpoints, ...unsyncdEndpoints],
-        endpointHistory
+        endpointHistory,
+        requiredBlock
       )) !== -1
     ) {
       endpointHistory.push(endpointIndex);
@@ -59,7 +78,7 @@ class SubgraphProxyService {
         if (e instanceof RateLimitError) {
           break; // Will likely result in rethrowing a different RateLimitError
         }
-        if (await this._isFutureBlockException(e, endpointIndex, subgraphName)) {
+        if (await this._isRetryableBlockException(e, endpointIndex, subgraphName)) {
           continue;
         } else {
           failedEndpoints.push(endpointIndex);
@@ -68,12 +87,14 @@ class SubgraphProxyService {
       }
 
       if (queryResult) {
-        this._updateStates(endpointIndex, subgraphName, queryResult, failedEndpoints);
+        SubgraphState.updateStatesWithResult(endpointIndex, subgraphName, queryResult);
+        for (const failedIndex of failedEndpoints) {
+          SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
+        }
 
-        // Don't use this result if the endpoint is behind
+        // Use this result if the endpoint is not behind
         if (await SubgraphState.isInSync(endpointIndex, subgraphName)) {
           if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
-            LoggingUtil.logSuccessfulProxy(subgraphName, endpointIndex, startTime, endpointHistory);
             return queryResult;
           }
           // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
@@ -83,38 +104,35 @@ class SubgraphProxyService {
         }
       }
     }
-
-    LoggingUtil.logFailedProxy(subgraphName, startTime, endpointHistory);
     await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
   }
 
-  // Updates persistent states upon a successful request
-  static async _updateStates(endpointIndex, subgraphName, queryResult, failedEndpoints) {
-    SubgraphState.setLastEndpointUsageTimestamp(endpointIndex, subgraphName);
-    SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
-    SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
-    SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
-    SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
-    SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
-
-    // Query to an endpoint suceeded - any previous failures were not due to the user's query.
-    for (const failedIndex of failedEndpoints) {
-      SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
-    }
-  }
-
-  // Identifies whether the failure is due to response being behind an explicitly requested block.
+  // Identifies whether the failure is recoverable, due to response being behind an explicitly requested block.
+  // There is also a type of block exception where the requested block is earlier than the start of indexing.
+  // Sample error messages:
   // "has only indexed up to block number 20580123 and data for block number 22333232 is therefore not yet available"
-  static async _isFutureBlockException(e, endpointIndex, subgraphName) {
-    const match = e.message.match(/block number (\d+) is therefore/);
-    if (match) {
-      const blockNumber = parseInt(match[1]);
+  // "only has data starting at block number 500 and data for block number 20582045 is therefore not yet available"
+  static async _isRetryableBlockException(e, endpointIndex, subgraphName) {
+    const matchFuture = e.message.match(/indexed up to block number \d+ and data for block number (\d+) is therefore/);
+    if (matchFuture) {
+      const requestedBlock = parseInt(matchFuture[1]);
       const chain = SubgraphState.getEndpointChain(endpointIndex, subgraphName);
-      if (blockNumber > (await ChainState.getChainHead(chain)) + 5) {
+      if (requestedBlock > (await ChainState.getChainHead(chain)) + 5) {
         // User requested a future block. This is not allowed
-        throw new RequestError(`The requested block ${blockNumber} is invalid for chain ${chain}.`);
+        throw new RequestError(`The requested block ${requestedBlock} is invalid for chain ${chain}.`);
       }
       return true;
+    }
+
+    const matchPast = e.message.match(
+      /only has data starting at block number (\d+) and data for block number (\d+) is therefore/
+    );
+    if (matchPast) {
+      const earliestBlock = parseInt(matchPast[1]);
+      const requestedBlock = parseInt(matchPast[2]);
+      throw new RequestError(
+        `The requested block ${requestedBlock} is smaller than the earliest accessible block for ${subgraphName}: ${earliestBlock}.`
+      );
     }
     return false;
   }
