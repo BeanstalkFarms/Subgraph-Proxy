@@ -4,13 +4,20 @@ class LoggingUtil {
   // Used to determine how much whitespace should pad the start of the subgraph name
   static longestEncounteredName = 0;
 
-  static async logSuccessfulProxy(subgraphName, endpointIndex, startTime, startUtilization, requestHistory) {
+  static async logSuccessfulProxy(subgraphName, startTime, startUtilization, requestHistory) {
     console.log(
-      await this._formatLog('[success]', subgraphName, startTime, startUtilization, requestHistory, endpointIndex)
+      await this._formatLog(
+        '[success]',
+        subgraphName,
+        startTime,
+        startUtilization,
+        requestHistory,
+        requestHistory[requestHistory.length - 1]
+      )
     );
   }
 
-  static async logFailedProxy(subgraphName, startTime, requestHistory) {
+  static async logFailedProxy(subgraphName, startTime, startUtilization, requestHistory) {
     console.log(await this._formatLog('<failure>', subgraphName, startTime, startUtilization, requestHistory));
   }
 

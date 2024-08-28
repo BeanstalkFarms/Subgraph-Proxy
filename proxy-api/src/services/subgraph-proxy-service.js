@@ -34,15 +34,31 @@ class SubgraphProxyService {
   }
 
   // Gets the result for this query from one of the available endpoints.
-  // Actual proxy/load balancing orchestration occurs here.
   static async _getQueryResult(subgraphName, query) {
     const startTime = new Date();
     const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
     const failedEndpoints = [];
     const unsyncdEndpoints = [];
     const endpointHistory = [];
-    const errors = [];
+    try {
+      const result = await this._getReliableResult(
+        subgraphName,
+        query,
+        failedEndpoints,
+        unsyncdEndpoints,
+        endpointHistory
+      );
+      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory);
+      return result;
+    } catch (e) {
+      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory);
+      throw e;
+    }
+  }
 
+  // Returns a reliable query result with respect to response consistency and api availability.
+  static async _getReliableResult(subgraphName, query, failedEndpoints, unsyncdEndpoints, endpointHistory) {
+    const errors = [];
     const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
     while (
@@ -76,10 +92,9 @@ class SubgraphProxyService {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
 
-        // Don't use this result if the endpoint is behind
+        // Use this result if the endpoint is not behind
         if (await SubgraphState.isInSync(endpointIndex, subgraphName)) {
           if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
-            LoggingUtil.logSuccessfulProxy(subgraphName, endpointIndex, startTime, startUtilization, endpointHistory);
             return queryResult;
           }
           // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
@@ -89,8 +104,6 @@ class SubgraphProxyService {
         }
       }
     }
-
-    LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory);
     await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
   }
 
