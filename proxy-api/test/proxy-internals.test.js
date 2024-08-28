@@ -32,24 +32,24 @@ describe('Subgraph Proxy - Core', () => {
   });
 
   test('Can successfully update the global state', async () => {
-    SubgraphProxyService._updateStates(0, 'bean', beanResponse, []);
+    SubgraphState.updateStatesWithResult(0, 'bean', beanResponse, []);
     expect(SubgraphState.getEndpointBlock(0, 'bean')).toEqual(responseBlock);
     expect(SubgraphState.getEndpointChain(0, 'bean')).toEqual('ethereum');
     expect(SubgraphState.getEndpointVersion(0, 'bean')).toEqual('2.3.1');
     expect(SubgraphState.getEndpointDeployment(0, 'bean')).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
 
     // Subgraph is behind, should not affect endpoint 0
-    SubgraphProxyService._updateStates(0, 'bean', beanBehindResponse, []);
+    SubgraphState.updateStatesWithResult(0, 'bean', beanBehindResponse, []);
     expect(SubgraphState.getEndpointBlock(0, 'bean')).toEqual(responseBlock);
-    SubgraphProxyService._updateStates(1, 'bean', beanBehindResponse, []);
+    SubgraphState.updateStatesWithResult(1, 'bean', beanBehindResponse, []);
     expect(SubgraphState.getEndpointBlock(1, 'bean')).toEqual(responseBehindBlock);
 
-    SubgraphProxyService._updateStates(0, 'bean', beanNewDeploymentResponse, []);
+    SubgraphState.updateStatesWithResult(0, 'bean', beanNewDeploymentResponse, []);
     expect(SubgraphState.getEndpointBlock(0, 'bean')).toEqual(newDeploymentBlock);
     expect(SubgraphState.getEndpointVersion(0, 'bean')).toEqual('2.3.2');
 
     // The new version on endpoint 0 crashed
-    SubgraphProxyService._updateStates(1, 'bean', beanResponse, [0]);
+    SubgraphState.updateStatesWithResult(1, 'bean', beanResponse, [0]);
     expect(SubgraphState.getEndpointBlock(0, 'bean')).toEqual(0);
     expect(SubgraphState.endpointHasErrors(0, 'bean')).toBeTruthy();
   });

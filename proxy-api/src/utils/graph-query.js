@@ -1,8 +1,5 @@
 class GraphqlQueryUtil {
-  static addMetadataToQuery(graphqlQuery) {
-    return graphqlQuery.replace(
-      '{',
-      `{
+  static METADATA_QUERY = `
       _meta {
         block {
           number
@@ -13,8 +10,10 @@ class GraphqlQueryUtil {
         subgraphName
         versionNumber
         chain
-      }`
-    );
+      }`;
+
+  static addMetadataToQuery(graphqlQuery) {
+    return graphqlQuery.replace('{', `{\n${this.METADATA_QUERY}`);
   }
 
   /**

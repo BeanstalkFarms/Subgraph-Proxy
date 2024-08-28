@@ -71,7 +71,10 @@ class SubgraphProxyService {
       }
 
       if (queryResult) {
-        this._updateStates(endpointIndex, subgraphName, queryResult, failedEndpoints);
+        SubgraphState.updateStatesWithResult(endpointIndex, subgraphName, queryResult);
+        for (const failedIndex of failedEndpoints) {
+          SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
+        }
 
         // Don't use this result if the endpoint is behind
         if (await SubgraphState.isInSync(endpointIndex, subgraphName)) {
@@ -89,21 +92,6 @@ class SubgraphProxyService {
 
     LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory);
     await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
-  }
-
-  // Updates persistent states upon a successful request
-  static async _updateStates(endpointIndex, subgraphName, queryResult, failedEndpoints) {
-    SubgraphState.setLastEndpointUsageTimestamp(endpointIndex, subgraphName);
-    SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
-    SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
-    SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
-    SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
-    SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
-
-    // Query to an endpoint suceeded - any previous failures were not due to the user's query.
-    for (const failedIndex of failedEndpoints) {
-      SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
-    }
   }
 
   // Identifies whether the failure is due to response being behind an explicitly requested block.

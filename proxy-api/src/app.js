@@ -6,10 +6,13 @@ const cors = require('@koa/cors');
 
 const { activateJobs } = require('./scheduled/cron-schedule.js');
 const EnvUtil = require('./utils/env.js');
+const InitService = require('./services/init-service.js');
 
 async function appStartup() {
   // Activate whichever cron jobs are configured, if any
   activateJobs(EnvUtil.getEnabledCronJobs());
+
+  await InitService.initAllSubgraphStates();
 
   const app = new Koa();
 
