@@ -222,6 +222,7 @@ describe('Endpoint Balancer', () => {
           return endpointIndex === 0 ? 500 : 499;
         });
       });
+
       test('No explicit query block', async () => {
         // Requeried
         expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0])).toEqual(0);
@@ -230,6 +231,7 @@ describe('Endpoint Balancer', () => {
         expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [1])).toEqual(0);
         expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [1])).toEqual(1);
       });
+
       test('Explicit query block', async () => {
         // Requeried
         expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0], 500)).toEqual(0);
@@ -239,6 +241,7 @@ describe('Endpoint Balancer', () => {
         expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [1], 500)).toEqual(1);
         expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0], 501)).toEqual(1);
         expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0, 1], 501)).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [0, 1], 501)).toEqual(1);
       });
     });
   });
@@ -255,6 +258,7 @@ describe('Endpoint Balancer', () => {
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
     });
+
     test('No endpoint can be chosen', async () => {
       jest.spyOn(BottleneckLimiters, 'isBurstDepleted').mockReturnValue(true);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(-1);
@@ -264,6 +268,19 @@ describe('Endpoint Balancer', () => {
       });
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(-1);
+    });
+
+    test('Utilization taking precedence over block conditions', async () => {
+      jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
+        return endpointIndex === 0 ? 500 : 499;
+      });
+      jest.spyOn(EndpointBalanceUtil, 'getSubgraphUtilization').mockResolvedValue({ 0: 5, 1: 2 });
+      // History
+      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0])).toEqual(1);
+      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [1], 500)).toEqual(1);
+      // Both having recent results
+      jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockReturnValue(mockTimeNow);
+      expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
     });
   });
 

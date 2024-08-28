@@ -12,16 +12,15 @@ class EndpointBalanceUtil {
    *    avoid unless some time has passed since last result
    * 3. If there are no options, re-consider whatever was removed in step (2)
    * 4. If there are still multiple to choose from:
-   *  a. do not prefer according to (b) or (c) if >100% utilization for the endpoint they would choose
-   *  b. if an endpoint is most recent in history but not blacklist:
+   *  a. Ignore both (b) and (c) if >100% utilization for the endpoint they would choose.
+   *  b. If an endpoint is most recent in history but not blacklist:
    *   i. If the query explicitly requests a particular block, query that endpoint again
    *      if its known indexed block >= the explicitly requested block.
    *  ii. Otherwise, query the endpoint again if its block >= the latest known
    *      indexed block for that subgraph.
-   * iii. if (i) and (ii) were not satisfied, never query the same endpoint again
-   *      in the next attempt.
-   *  c. if both have a result within the last second, prefer one having a later block
-   *  d. prefer according to utilization
+   * iii. If (i) and (ii) were not satisfied, do not query the same endpoint again in the next attempt.
+   *  c. If both have a result within the last second, prefer one having a later block
+   *  d. Prefer according to utilization
    * @param {string} subgraphName
    * @param {number[]} blacklist - none of these endpoints should be returned.
    * @param {number[]} history - sequence of endpoints which have been chosen and queried to serve this request.
@@ -57,15 +56,24 @@ class EndpointBalanceUtil {
       const latestIndexedBlock = SubgraphState.getLatestBlock(subgraphName);
       const sortLogic = (a, b) => {
         const isLastHistory = (a) => history[history.length - 1] === a;
-        const retryLast = (a) => {
+        const isOverutilized = (a) => currentUtilization[a] >= 1;
+        const canRetryLast = (a) => {
           const minimalBlock = requiredBlock ?? latestIndexedBlock;
-          return SubgraphState.getEndpointBlock(a) >= minimalBlock && currentUtilization[a] < 1;
+          return SubgraphState.getEndpointBlock(a) >= minimalBlock && !isOverutilized(a);
         };
         // Retry previous request to the same endpoint if it didnt fail previously and is fully indexed
         if (isLastHistory(a)) {
-          return retryLast(a) ? -1 : 1;
+          if (canRetryLast(a)) {
+            return -1;
+          } else if (!isOverutilized(b)) {
+            return 1;
+          }
         } else if (isLastHistory(b)) {
-          return retryLast(b) ? 1 : -1;
+          if (canRetryLast(b)) {
+            return 1;
+          } else if (!isOverutilized(a)) {
+            return -1;
+          }
         }
 
         // Use endpoint with later results if neither results are stale
@@ -73,11 +81,11 @@ class EndpointBalanceUtil {
         const lastB = SubgraphState.getLastEndpointUsageTimestamp(b, subgraphName);
         if (Math.abs(lastA - lastB) < 1000) {
           const useLaterBlock = (a, b) => {
-            return SubgraphState.getEndpointBlock(a) > SubgraphState.getEndpointBlock(b) && currentUtilization[a] < 1;
+            return SubgraphState.getEndpointBlock(a) > SubgraphState.getEndpointBlock(b);
           };
-          if (useLaterBlock(a, b)) {
+          if (useLaterBlock(a, b) && !isOverutilized(a)) {
             return -1;
-          } else if (useLaterBlock(b, a)) {
+          } else if (useLaterBlock(b, a) && !isOverutilized(a)) {
             return 1;
           }
         }
