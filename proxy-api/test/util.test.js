@@ -1,6 +1,6 @@
 const SemVerUtil = require('../src/utils/semver');
 const { gql } = require('graphql-request');
-const GraphqlQueryUtil = require('../src/utils/query-manipulation');
+const GraphqlQueryUtil = require('../src/utils/graph-query');
 const SubgraphProxyService = require('../src/services/subgraph-proxy-service');
 
 const beanResponse = require('./mock-responses/bean.json');
@@ -58,7 +58,43 @@ describe('Utils', () => {
       expect(result.body.version).toBeUndefined();
     });
 
-    test('Regex tests', () => {
+    test('Identifies maximal explicitly requested block', () => {
+      expect(
+        GraphqlQueryUtil.maxRequestedBlock(gql`
+          {
+            fertilizerBalances {
+              amount
+            }
+          }
+        `)
+      ).toEqual(null);
+      expect(
+        GraphqlQueryUtil.maxRequestedBlock(gql`
+          {
+            fertilizerBalances {
+              amount
+            }
+            fields(block: { number: 55 }) {
+              id
+            }
+          }
+        `)
+      ).toEqual(55);
+      expect(
+        GraphqlQueryUtil.maxRequestedBlock(`
+          {
+            fertilizerBalances   (block: { number:\n12345 }) {
+              amount
+            }
+            fields(block: {    number: 55 }) {
+              id
+            }
+          }
+        `)
+      ).toEqual(12345);
+    });
+
+    test('Check for includes meta/version', () => {
       expect(GraphqlQueryUtil._includesMeta('_meta {')).toEqual(true);
       expect(GraphqlQueryUtil._includesMeta('_meta{')).toEqual(true);
       expect(GraphqlQueryUtil._includesMeta('_meta\n\n\n\n{')).toEqual(true);

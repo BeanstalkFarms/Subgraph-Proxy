@@ -24,10 +24,11 @@ class EndpointBalanceUtil {
    * @param {number[]} blacklist - none of these endpoints should be returned.
    * @param {number[]} history - sequence of endpoints which have been chosen and queried to serve this request.
    *    This is useful in balancing queries when one subgraph falls behind but not out of sync.
+   * @param {number} requiredBlock - highest block number that was explicitly requested in the query.
    * @returns {number} the endpoint index that should be used for the next query.
    *    If no endpoints are suitable for a reqeuest, returns -1.
    */
-  static async chooseEndpoint(subgraphName, blacklist = [], history = []) {
+  static async chooseEndpoint(subgraphName, blacklist = [], history = [], requiredBlock = null) {
     const subgraphEndpoints = EnvUtil.endpointsForSubgraph(subgraphName);
     let options = [];
     // Remove blacklisted/overutilized endpoints

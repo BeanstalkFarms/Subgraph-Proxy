@@ -33,6 +33,11 @@ class GraphqlQueryUtil {
     return result;
   }
 
+  // Returns the maximum of the explicitly requested blocks, if any. Returns undefined if none exist.
+  static maxRequestedBlock(originalQuery) {
+    return null;
+  }
+
   static _includesMeta(originalQuery) {
     return /_meta\s*\{/.test(originalQuery);
   }

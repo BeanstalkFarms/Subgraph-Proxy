@@ -1,6 +1,6 @@
 const SubgraphClients = require('../datasources/subgraph-clients');
 const EndpointBalanceUtil = require('../utils/load/endpoint-balance');
-const GraphqlQueryUtil = require('../utils/query-manipulation');
+const GraphqlQueryUtil = require('../utils/graph-query');
 const EndpointError = require('../error/endpoint-error');
 const RequestError = require('../error/request-error');
 const RateLimitError = require('../error/rate-limit-error');
@@ -43,12 +43,14 @@ class SubgraphProxyService {
     const endpointHistory = [];
     const errors = [];
 
+    const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
     while (
       (endpointIndex = await EndpointBalanceUtil.chooseEndpoint(
         subgraphName,
         [...failedEndpoints, ...unsyncdEndpoints],
-        endpointHistory
+        endpointHistory,
+        requiredBlock
       )) !== -1
     ) {
       endpointHistory.push(endpointIndex);
