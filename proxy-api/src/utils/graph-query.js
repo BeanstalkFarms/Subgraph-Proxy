@@ -34,7 +34,13 @@ class GraphqlQueryUtil {
 
   // Returns the maximum of the explicitly requested blocks, if any. Returns undefined if none exist.
   static maxRequestedBlock(originalQuery) {
-    return null;
+    const regex = /block\s*:\s*\{\s*number\s*:\s*(\d+)\s*\}/g;
+    let match;
+    let result = null;
+    while ((match = regex.exec(originalQuery)) !== null) {
+      result = Math.max(result, parseInt(match[1]));
+    }
+    return result;
   }
 
   static _includesMeta(originalQuery) {

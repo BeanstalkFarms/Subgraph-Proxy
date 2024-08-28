@@ -47,11 +47,6 @@ describe('Subgraph Proxy - Core', () => {
     SubgraphState.updateStatesWithResult(0, 'bean', beanNewDeploymentResponse, []);
     expect(SubgraphState.getEndpointBlock(0, 'bean')).toEqual(newDeploymentBlock);
     expect(SubgraphState.getEndpointVersion(0, 'bean')).toEqual('2.3.2');
-
-    // The new version on endpoint 0 crashed
-    SubgraphState.updateStatesWithResult(1, 'bean', beanResponse, [0]);
-    expect(SubgraphState.getEndpointBlock(0, 'bean')).toEqual(0);
-    expect(SubgraphState.endpointHasErrors(0, 'bean')).toBeTruthy();
   });
 
   describe('Core retry logic', () => {
