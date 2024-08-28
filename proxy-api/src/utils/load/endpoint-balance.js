@@ -14,10 +14,12 @@ class EndpointBalanceUtil {
    * 4. If there are still multiple to choose from:
    *  a. do not prefer according to (b) or (c) if >100% utilization for the endpoint they would choose
    *  b. if an endpoint is most recent in history but not blacklist:
-   *   i. If the query explicitly requests a particular block, query that endpoint again if
-   *      its known indexed block >= the explicitly requested block.
+   *   i. If the query explicitly requests a particular block, query that endpoint again
+   *      if its known indexed block >= the explicitly requested block.
    *  ii. Otherwise, query the endpoint again if its block >= the latest known
    *      indexed block for that subgraph.
+   * iii. if (i) and (ii) were not satisfied, never query the same endpoint again
+   *      in the next attempt.
    *  c. if both have a result within the last second, prefer one having a later block
    *  d. prefer according to utilization
    * @param {string} subgraphName
@@ -54,18 +56,16 @@ class EndpointBalanceUtil {
       const currentUtilization = await this.getSubgraphUtilization(subgraphName);
       const latestIndexedBlock = SubgraphState.getLatestBlock(subgraphName);
       const sortLogic = (a, b) => {
+        const isLastHistory = (a) => history[history.length - 1] === a;
         const retryLast = (a) => {
-          return (
-            history[history.length - 1] === a &&
-            SubgraphState.getEndpointBlock(a) >= latestIndexedBlock &&
-            currentUtilization[a] < 1
-          );
+          const minimalBlock = requiredBlock ?? latestIndexedBlock;
+          return SubgraphState.getEndpointBlock(a) >= minimalBlock && currentUtilization[a] < 1;
         };
         // Retry previous request to the same endpoint if it didnt fail previously and is fully indexed
-        if (retryLast(a)) {
-          return -1;
-        } else if (retryLast(b)) {
-          return 1;
+        if (isLastHistory(a)) {
+          return retryLast(a) ? -1 : 1;
+        } else if (isLastHistory(b)) {
+          return retryLast(b) ? 1 : -1;
         }
 
         // Use endpoint with later results if neither results are stale

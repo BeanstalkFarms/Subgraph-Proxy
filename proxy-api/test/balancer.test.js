@@ -216,20 +216,30 @@ describe('Endpoint Balancer', () => {
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
     });
 
-    test('History endpoint is preferred to be re-queried', async () => {
-      jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
-        return endpointIndex === 0 ? 500 : 499;
+    describe('Retry latest history endpoint', () => {
+      beforeEach(() => {
+        jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
+          return endpointIndex === 0 ? 500 : 499;
+        });
       });
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0])).toEqual(0);
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [0])).toEqual(1);
-    });
-
-    test('History endpoint is not preferred to be re-queried', async () => {
-      jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
-        return endpointIndex === 0 ? 500 : 499;
+      test('No explicit query block', async () => {
+        // Requeried
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0])).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [0])).toEqual(1);
+        // Not requeried
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [1])).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [1])).toEqual(1);
       });
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [1])).toEqual(0);
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [1])).toEqual(1);
+      test('Explicit query block', async () => {
+        // Requeried
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0], 500)).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [0], 500)).toEqual(1);
+        // Not requeried
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [1], 500)).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0], [1], 500)).toEqual(1);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0], 501)).toEqual(1);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0, 1], 501)).toEqual(0);
+      });
     });
   });
 
