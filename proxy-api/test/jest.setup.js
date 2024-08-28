@@ -14,7 +14,10 @@ jest.mock('../src/utils/env', () => {
 });
 // Disable bottleneck limiters. Mock entire module so the static initializer does not execute
 jest.mock('../src/utils/load/bottleneck-limiters', () => {
-  return {};
+  return {
+    isBurstDepleted: jest.fn(),
+    getUtilization: jest.fn()
+  };
 });
 // Disable evm providers. Mock entire module so the static initializer does not execute
 jest.mock('../src/datasources/evm-providers', () => {

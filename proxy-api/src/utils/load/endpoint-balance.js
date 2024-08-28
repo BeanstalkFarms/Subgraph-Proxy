@@ -13,8 +13,11 @@ class EndpointBalanceUtil {
    * 3. If there are no options, re-consider whatever was removed in step (2)
    * 4. If there are still multiple to choose from:
    *  a. do not prefer according to (b) or (c) if >100% utilization for the endpoint they would choose
-   *  b. if an endpoint is most recent in history but not blacklist, prefer that one again if
-   *     its block >= the latest known indexed block for that subgraph.
+   *  b. if an endpoint is most recent in history but not blacklist:
+   *   i. If the query explicitly requests a particular block, query that endpoint again if
+   *      its known indexed block >= the explicitly requested block.
+   *  ii. Otherwise, query the endpoint again if its block >= the latest known
+   *      indexed block for that subgraph.
    *  c. if both have a result within the last second, prefer one having a later block
    *  d. prefer according to utilization
    * @param {string} subgraphName

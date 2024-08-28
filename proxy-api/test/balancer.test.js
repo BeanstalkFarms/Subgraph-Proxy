@@ -2,11 +2,6 @@ const EndpointBalanceUtil = require('../src/utils/load/endpoint-balance');
 const ChainState = require('../src/utils/state/chain');
 const SubgraphState = require('../src/utils/state/subgraph');
 const EnvUtil = require('../src/utils/env');
-
-jest.mock('../src/utils/load/bottleneck-limiters', () => ({
-  isBurstDepleted: jest.fn(),
-  getUtilization: jest.fn()
-}));
 const BottleneckLimiters = require('../src/utils/load/bottleneck-limiters');
 
 const mockTimeNow = new Date(1700938811 * 1000);

@@ -37,6 +37,7 @@ class SubgraphProxyService {
   // Actual proxy/load balancing orchestration occurs here.
   static async _getQueryResult(subgraphName, query) {
     const startTime = new Date();
+    const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
     const failedEndpoints = [];
     const unsyncdEndpoints = [];
     const endpointHistory = [];
@@ -73,7 +74,7 @@ class SubgraphProxyService {
         // Don't use this result if the endpoint is behind
         if (await SubgraphState.isInSync(endpointIndex, subgraphName)) {
           if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
-            LoggingUtil.logSuccessfulProxy(subgraphName, endpointIndex, startTime, endpointHistory);
+            LoggingUtil.logSuccessfulProxy(subgraphName, endpointIndex, startTime, startUtilization, endpointHistory);
             return queryResult;
           }
           // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
@@ -84,7 +85,7 @@ class SubgraphProxyService {
       }
     }
 
-    LoggingUtil.logFailedProxy(subgraphName, startTime, endpointHistory);
+    LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory);
     await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
   }
 
