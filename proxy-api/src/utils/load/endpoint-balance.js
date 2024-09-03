@@ -21,6 +21,11 @@ class EndpointBalanceUtil {
    * iii. If (i) and (ii) were not satisfied, do not query the same endpoint again in the next attempt.
    *  c. If both have a result within the last second, prefer one having a later block
    *  d. Prefer according to utilization
+   *
+   * 4c. consider: if any do not have a result within the last second, and have no known errors, try that one
+   * this only works if the error checking is sound
+   *  - init should contain the required info
+   *
    * @param {string} subgraphName
    * @param {number[]} blacklist - none of these endpoints should be returned.
    * @param {number[]} history - sequence of endpoints which have been chosen and queried to serve this request.
