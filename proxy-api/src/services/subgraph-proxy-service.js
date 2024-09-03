@@ -37,17 +37,9 @@ class SubgraphProxyService {
   static async _getQueryResult(subgraphName, query) {
     const startTime = new Date();
     const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
-    const failedEndpoints = [];
-    const unsyncdEndpoints = [];
     const endpointHistory = [];
     try {
-      const result = await this._getReliableResult(
-        subgraphName,
-        query,
-        failedEndpoints,
-        unsyncdEndpoints,
-        endpointHistory
-      );
+      const result = await this._getReliableResult(subgraphName, query, endpointHistory);
       LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory);
       return result;
     } catch (e) {
@@ -57,14 +49,17 @@ class SubgraphProxyService {
   }
 
   // Returns a reliable query result with respect to response consistency and api availability.
-  static async _getReliableResult(subgraphName, query, failedEndpoints, unsyncdEndpoints, endpointHistory) {
+  static async _getReliableResult(subgraphName, query, endpointHistory) {
+    const failedEndpoints = [];
+    const unsyncdEndpoints = [];
+    const staleVersionEndpoints = [];
     const errors = [];
     const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
     while (
       (endpointIndex = await EndpointBalanceUtil.chooseEndpoint(
         subgraphName,
-        [...failedEndpoints, ...unsyncdEndpoints],
+        [...failedEndpoints, ...unsyncdEndpoints, ...staleVersionEndpoints],
         endpointHistory,
         requiredBlock
       )) !== -1
@@ -82,6 +77,7 @@ class SubgraphProxyService {
           continue;
         } else {
           failedEndpoints.push(endpointIndex);
+          staleVersionEndpoints.length = 0;
           errors.push(e);
         }
       }
@@ -92,16 +88,22 @@ class SubgraphProxyService {
           SubgraphState.setEndpointHasErrors(failedIndex, subgraphName, true);
         }
 
-        // Use this result if the endpoint is not behind
-        if (await SubgraphState.isInSync(endpointIndex, subgraphName)) {
-          if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
-            return queryResult;
-          }
-          // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
-          // another. Do not accept this response. A valid response is expected on the next attempt
-        } else {
+        // Avoid endpoints with issues
+        if (!(await SubgraphState.isInSync(endpointIndex, subgraphName))) {
           unsyncdEndpoints.push(endpointIndex);
+          staleVersionEndpoints.length = 0;
+          continue;
+        } else if (await SubgraphState.isStaleVersion(endpointIndex, subgraphName)) {
+          // Note that an old version won't be stale if the newer version failed/is out of sync
+          staleVersionEndpoints.push(endpointIndex);
+          continue;
         }
+
+        if (queryResult._meta.block.number >= SubgraphState.getLatestBlock(subgraphName)) {
+          return queryResult;
+        }
+        // The endpoint is in sync, but a more recent response had previously been given, either for this endpoint or
+        // another. Do not accept this response. A valid response is expected on the next attempt
       }
     }
     await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
@@ -139,11 +141,12 @@ class SubgraphProxyService {
 
   // Throws an exception based on the failure reason
   static async _throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints) {
-    if (failedEndpoints.length + unsyncdEndpoints.length < EnvUtil.endpointsForSubgraph(subgraphName).length) {
+    const endpointsAttempted = failedEndpoints.length + unsyncdEndpoints.length;
+    if (endpointsAttempted < EnvUtil.endpointsForSubgraph(subgraphName).length) {
       // If any of the endpoints were not attempted, assume this is a rate limiting issue.
       // This is preferable to performing the status check on a failing endpoint,
       // while another endpoint is presumably alive and actively servicing requests.
-      if (failedEndpoints.length + unsyncdEndpoints.length === 0) {
+      if (endpointsAttempted === 0) {
         DiscordUtil.sendWebhookMessage(
           `Rate limit exceeded on all endpoints for ${subgraphName}. No endpoints attempted to service this request.`
         );

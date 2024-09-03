@@ -51,7 +51,7 @@ class EndpointBalanceUtil {
     }
 
     // If possible, avoid known troublesome endpoints
-    const troublesomeEndpoints = this._getTroublesomeEndpoints(options, subgraphName);
+    const troublesomeEndpoints = await this._getTroublesomeEndpoints(options, subgraphName);
     if (options.length !== troublesomeEndpoints.length) {
       options = options.filter((endpoint) => !troublesomeEndpoints.includes(endpoint));
     }
@@ -125,7 +125,7 @@ class EndpointBalanceUtil {
 
   // A "troublesome endpoint" is defined as an endpoint which is known in the last minute to: (1) have errors,
   // (2) be out of sync/singificantly behind in indexing, or (3) not running the latest subgraph version
-  static _getTroublesomeEndpoints(endpointsIndices, subgraphName) {
+  static async _getTroublesomeEndpoints(endpointsIndices, subgraphName) {
     const now = new Date();
     const troublesomeEndpoints = [];
     for (const endpointIndex of endpointsIndices) {
@@ -134,9 +134,9 @@ class EndpointBalanceUtil {
         if (
           (SubgraphState.endpointHasErrors(endpointIndex, subgraphName) &&
             now - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
-          (!SubgraphState.isInSync(endpointIndex, subgraphName) &&
+          (!(await SubgraphState.isInSync(endpointIndex, subgraphName)) &&
             now - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
-          (SubgraphState.isStaleVersion(endpointIndex, subgraphName) &&
+          ((await SubgraphState.isStaleVersion(endpointIndex, subgraphName)) &&
             now - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < 60 * 1000)
         ) {
           troublesomeEndpoints.push(endpointIndex);

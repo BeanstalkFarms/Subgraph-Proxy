@@ -46,9 +46,9 @@ class SubgraphState {
   static getEndpointVersion(endpointIndex, subgraphName) {
     return this._endpointVersion[`${endpointIndex}-${subgraphName}`];
   }
-  static setEndpointVersion(endpointIndex, subgraphName, version) {
+  static async setEndpointVersion(endpointIndex, subgraphName, version) {
     this._endpointVersion[`${endpointIndex}-${subgraphName}`] = version;
-    if (this.isStaleVersion(endpointIndex, subgraphName)) {
+    if (await this.isStaleVersion(endpointIndex, subgraphName)) {
       // Update timestamp
       this.setLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName);
     }
@@ -147,6 +147,17 @@ class SubgraphState {
     return versions[versions.length - 1];
   }
 
+  static async getLatestActiveVersion(subgraphName) {
+    let versions = [];
+    for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
+      if ((await this.isInSync(i, subgraphName)) && !this.endpointHasErrors(i, subgraphName)) {
+        versions.push(this._endpointVersion[`${i}-${subgraphName}`]);
+      }
+    }
+    versions = versions.filter((v) => v !== undefined).sort(SemVerUtil.compareVersions);
+    return versions[versions.length - 1];
+  }
+
   static getLatestBlock(subgraphName) {
     let blocks = [];
     for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
@@ -162,11 +173,11 @@ class SubgraphState {
     return this.getEndpointBlock(endpointIndex, subgraphName) + 50 > (await ChainState.getChainHead(chain));
   }
 
-  static isStaleVersion(endpointIndex, subgraphName) {
+  static async isStaleVersion(endpointIndex, subgraphName) {
     return (
       SemVerUtil.compareVersions(
         this.getEndpointVersion(endpointIndex, subgraphName),
-        this.getLatestVersion(subgraphName)
+        await this.getLatestActiveVersion(subgraphName)
       ) === -1
     );
   }

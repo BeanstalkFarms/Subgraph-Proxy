@@ -18,11 +18,11 @@ describe('State: Derived functions', () => {
     }
   });
 
-  test('Gets aggregate latest subgraph version', () => {
-    SubgraphState.setEndpointVersion(0, 'bean', '2.1.0');
-    SubgraphState.setEndpointVersion(0, 'beanstalk', '2.2.5');
-    SubgraphState.setEndpointVersion(1, 'bean', '2.1.2');
-    SubgraphState.setEndpointVersion(1, 'beanstalk', '1.2.4');
+  test('Gets aggregate latest subgraph version', async () => {
+    await SubgraphState.setEndpointVersion(0, 'bean', '2.1.0');
+    await SubgraphState.setEndpointVersion(0, 'beanstalk', '2.2.5');
+    await SubgraphState.setEndpointVersion(1, 'bean', '2.1.2');
+    await SubgraphState.setEndpointVersion(1, 'beanstalk', '1.2.4');
 
     expect(SubgraphState.getLatestVersion('bean')).toEqual('2.1.2');
     expect(SubgraphState.getLatestVersion('beanstalk')).toEqual('2.2.5');
@@ -83,9 +83,10 @@ describe('State: Derived functions', () => {
       await SubgraphState.setEndpointBlock(0, 'bean', 15);
       expect(SubgraphState.getLastEndpointOutOfSyncTimestamp(0, 'bean')).toEqual(mockTimeNow);
 
+      jest.spyOn(SubgraphState, 'isInSync').mockResolvedValue(true);
       expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toBeUndefined();
-      SubgraphState.setEndpointVersion(1, 'bean', '1.0.0');
-      SubgraphState.setEndpointVersion(0, 'bean', '0.9.5');
+      await SubgraphState.setEndpointVersion(1, 'bean', '1.0.0');
+      await SubgraphState.setEndpointVersion(0, 'bean', '0.9.5');
       expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(mockTimeNow);
     });
   });
