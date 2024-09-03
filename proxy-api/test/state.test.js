@@ -6,12 +6,10 @@ const mockTimeNow = new Date(1700938811 * 1000);
 const mockTimeFuture = new Date(1750938811 * 1000);
 
 describe('State: Derived functions', () => {
-  beforeAll(() => {
+  beforeEach(() => {
+    jest.resetAllMocks();
     jest.spyOn(EnvUtil, 'endpointsForSubgraph').mockReturnValue([0, 1]);
     jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(500);
-  });
-
-  beforeEach(() => {
     // Reset static members between test
     for (const property of Object.keys(SubgraphState)) {
       SubgraphState[property] = {};
@@ -89,5 +87,25 @@ describe('State: Derived functions', () => {
       await SubgraphState.setEndpointVersion(0, 'bean', '0.9.5');
       expect(SubgraphState.getLastEndpointStaleVersionTimestamp(0, 'bean')).toEqual(mockTimeNow);
     });
+  });
+  test('Failed/out of sync endpoint does not contribute to latest active version', async () => {
+    await SubgraphState.setEndpointVersion(1, 'bean', '1.0.0');
+    await SubgraphState.setEndpointVersion(0, 'bean', '0.9.5');
+
+    jest.spyOn(SubgraphState, 'isInSync').mockImplementation(async (endpointIndex, _) => {
+      return endpointIndex === 0;
+    });
+    jest.spyOn(SubgraphState, 'endpointHasErrors').mockReturnValue(false);
+    expect(await SubgraphState.getLatestActiveVersion('bean')).toEqual('0.9.5');
+
+    jest.spyOn(SubgraphState, 'isInSync').mockResolvedValueOnce(true);
+    jest.spyOn(SubgraphState, 'endpointHasErrors').mockImplementationOnce((endpointIndex, _) => {
+      return endpointIndex !== 0;
+    });
+    expect(await SubgraphState.getLatestActiveVersion('bean')).toEqual('0.9.5');
+
+    jest.spyOn(SubgraphState, 'isInSync').mockResolvedValue(true);
+    jest.spyOn(SubgraphState, 'endpointHasErrors').mockReturnValue(false);
+    expect(await SubgraphState.getLatestActiveVersion('bean')).toEqual('1.0.0');
   });
 });
