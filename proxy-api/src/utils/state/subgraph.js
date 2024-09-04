@@ -155,11 +155,7 @@ class SubgraphState {
   static async getLatestActiveVersion(subgraphName) {
     let versions = [];
     for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
-      if (
-        this.getEndpointDeployment(i, subgraphName) &&
-        (await this.isInSync(i, subgraphName)) &&
-        !this.endpointHasErrors(i, subgraphName)
-      ) {
+      if ((await this.isInSync(i, subgraphName)) && !this.endpointHasErrors(i, subgraphName)) {
         versions.push(this._endpointVersion[`${i}-${subgraphName}`]);
       }
     }
@@ -179,7 +175,7 @@ class SubgraphState {
   // Not a perfect assumption - the endpoint is considered in sync if it is within 50 blocks of the chain head.
   static async isInSync(endpointIndex, subgraphName) {
     const chain = this.getEndpointChain(endpointIndex, subgraphName);
-    return this.getEndpointBlock(endpointIndex, subgraphName) + 50 > (await ChainState.getChainHead(chain));
+    return chain && this.getEndpointBlock(endpointIndex, subgraphName) + 50 > (await ChainState.getChainHead(chain));
   }
 
   static async isStaleVersion(endpointIndex, subgraphName) {

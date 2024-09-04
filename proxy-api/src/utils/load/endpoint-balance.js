@@ -148,15 +148,12 @@ class EndpointBalanceUtil {
   static async _getTroublesomeEndpoints(endpointsIndices, subgraphName) {
     const troublesomeEndpoints = [];
     for (const endpointIndex of endpointsIndices) {
-      // Dont consider a subgraph troublesome if it hasnt been queried yet
-      if (SubgraphState.getEndpointDeployment(endpointIndex, subgraphName)) {
-        if (
-          SubgraphState.isRecentlyHavingError(endpointIndex, subgraphName) ||
-          (await SubgraphState.isRecentlyOutOfSync(endpointIndex, subgraphName)) ||
-          (await SubgraphState.isRecentlyStaleVersion(endpointIndex, subgraphName))
-        ) {
-          troublesomeEndpoints.push(endpointIndex);
-        }
+      if (
+        SubgraphState.isRecentlyHavingError(endpointIndex, subgraphName) ||
+        (await SubgraphState.isRecentlyOutOfSync(endpointIndex, subgraphName)) ||
+        (await SubgraphState.isRecentlyStaleVersion(endpointIndex, subgraphName))
+      ) {
+        troublesomeEndpoints.push(endpointIndex);
       }
     }
     return troublesomeEndpoints;

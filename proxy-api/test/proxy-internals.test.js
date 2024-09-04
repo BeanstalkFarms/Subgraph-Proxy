@@ -67,6 +67,7 @@ describe('Subgraph Proxy - Core', () => {
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, -1, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
       jest.spyOn(SubgraphState, 'getLatestSubgraphErrorCheck').mockReturnValue(undefined);
+      jest.spyOn(SubgraphState, 'getEndpointChain').mockReturnValue('ethereum');
     });
 
     test('Initial endpoint succeeds', async () => {
@@ -174,7 +175,7 @@ describe('Subgraph Proxy - Core', () => {
         jest
           .spyOn(SubgraphClients, 'makeCallableClient')
           .mockResolvedValueOnce(async () => beanOldVersionResponse)
-          .mockResolvedValueOnce(async () => beanFarBehind)
+          .mockResolvedValueOnce(async () => beanFarBehindResponse)
           .mockResolvedValueOnce(async () => beanOldVersionResponse);
 
         await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
