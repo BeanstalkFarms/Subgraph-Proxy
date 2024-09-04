@@ -113,9 +113,9 @@ class EndpointBalanceUtil {
       };
       options.sort(sortLogic);
     }
-    for (let i = 1; i < options.length; ++i) {
+    for (let i = 0; i < options.length; ++i) {
       if (
-        // No need to check utilization here - if there is no recent response and no errors, it cant be over utilized.
+        // No need to check utilization - if there is no recent response and no errors, it cant be over utilized.
         new Date() - SubgraphState.getLastEndpointUsageTimestamp(options[i], subgraphName) > RECENT_RESULT_MS &&
         !SubgraphState.endpointHasFatalErrors(options[i], subgraphName) &&
         !SubgraphState.isRecentlyHavingError(options[i], subgraphName) &&
@@ -140,7 +140,6 @@ class EndpointBalanceUtil {
   // A "troublesome endpoint" is defined as an endpoint which is known in the last minute to: (1) have errors,
   // (2) be out of sync/singificantly behind in indexing, or (3) not running the latest subgraph version
   static async _getTroublesomeEndpoints(endpointsIndices, subgraphName) {
-    const now = new Date();
     const troublesomeEndpoints = [];
     for (const endpointIndex of endpointsIndices) {
       // Dont consider a subgraph troublesome if it hasnt been queried yet

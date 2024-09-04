@@ -189,31 +189,40 @@ describe('Endpoint Balancer', () => {
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
     });
 
-    test('Endpoint with latest block result is not chosen due to stale result', async () => {
-      jest.spyOn(BottleneckLimiters, 'getUtilization').mockImplementation((endpointIndex) => {
-        return endpointIndex === 0 ? 0.52 : 0.2;
+    describe('Endpoint with no recent result is chosen on that basis', () => {
+      beforeEach(() => {
+        jest.spyOn(BottleneckLimiters, 'getUtilization').mockImplementation((endpointIndex) => {
+          return endpointIndex === 0 ? 0.1 : 0;
+        });
+        jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockImplementation((endpointIndex, _) => {
+          return endpointIndex === 0 ? mockTimeNow : mockTimePrev;
+        });
       });
-      jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
-        return endpointIndex === 0 ? 499 : 500;
+      test('Non-recent endpoint is chosen', async () => {
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       });
-      jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockImplementation((endpointIndex, _) => {
-        return endpointIndex === 0 ? mockTimeNow : mockTimePrev;
+      test('Not chosen due to fatal errors', async () => {
+        jest.spyOn(SubgraphState, 'endpointHasFatalErrors').mockImplementation((endpointIndex, _) => {
+          return endpointIndex === 1;
+        });
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
       });
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(0);
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
-
-      // Same should occur even if utilization preference is exceeded (but not >100%)
-      jest.spyOn(BottleneckLimiters, 'getUtilization').mockImplementation((endpointIndex) => {
-        return endpointIndex === 0 ? 0.92 : 0.3;
+      test('Not chosen due to recent errors', async () => {
+        mockEndpointErrors(1, true);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
       });
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
-
-      jest.spyOn(BottleneckLimiters, 'getUtilization').mockImplementation((endpointIndex) => {
-        return endpointIndex === 0 ? 0.52 : 1.5;
+      test('Not chosen due to out of sync', async () => {
+        mockEndpointOutOfSync(1, true);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
       });
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(0);
-      expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
+      test('Not chosen due to stale version', async () => {
+        mockEndpointOnStaleVersion(1, true);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(0);
+        expect(await EndpointBalanceUtil.chooseEndpoint('bean', [0])).toEqual(1);
+      });
     });
 
     describe('Retry latest history endpoint', () => {
