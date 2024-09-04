@@ -131,9 +131,9 @@ class SubgraphState {
   static async updateStatesWithResult(endpointIndex, subgraphName, queryResult) {
     SubgraphState.setLastEndpointUsageTimestamp(endpointIndex, subgraphName);
     SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
-    SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
     SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
     SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
+    SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
     SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
   }
 
@@ -150,7 +150,11 @@ class SubgraphState {
   static async getLatestActiveVersion(subgraphName) {
     let versions = [];
     for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
-      if ((await this.isInSync(i, subgraphName)) && !this.endpointHasErrors(i, subgraphName)) {
+      if (
+        this.getEndpointDeployment(i, subgraphName) &&
+        (await this.isInSync(i, subgraphName)) &&
+        !this.endpointHasErrors(i, subgraphName)
+      ) {
         versions.push(this._endpointVersion[`${i}-${subgraphName}`]);
       }
     }
