@@ -2,8 +2,7 @@ const EnvUtil = require('../env');
 const SubgraphState = require('../state/subgraph');
 const BottleneckLimiters = require('./bottleneck-limiters');
 
-// Can consider which endpoint is further indexed when responses from both endpoints
-// are at least this recent.
+// Can consider which endpoint is further indexed when responses from both endpoints are at least this recent.
 const RECENT_RESULT_MS = 2000;
 
 class EndpointBalanceUtil {
@@ -25,9 +24,9 @@ class EndpointBalanceUtil {
    * iii. If (i) and (ii) were not satisfied, do not query the same endpoint again in the next attempt.
    *  c. If both have a result within the last RECENT_RESULT_MS, prefer one having a later block
    *  d. Prefer according to utilization
-   * 5. Choose the preferred endpoint, unless any in this preference stack doesn't have
-   *    a result in the last RECENT_RESULT_MS, despite being on the latest version, in sync,
-   *    and without fatal error. In that case, choose the first endpoint matching that description.
+   * 5. Choose the preferred endpoint, unless any in this preference stack doesn't have a result in
+   *    the last RECENT_RESULT_MS, despite being on the latest version, in sync, and without fatal error
+   *    or recent errors. In that case, choose the first endpoint matching that description.
    *
    * @param {string} subgraphName
    * @param {number[]} blacklist - none of these endpoints should be returned.
@@ -116,8 +115,10 @@ class EndpointBalanceUtil {
     }
     for (let i = 1; i < options.length; ++i) {
       if (
+        // No need to check utilization here - if there is no recent response and no errors, it cant be over utilized.
         new Date() - SubgraphState.getLastEndpointUsageTimestamp(options[i], subgraphName) > RECENT_RESULT_MS &&
         !SubgraphState.endpointHasFatalErrors(options[i], subgraphName) &&
+        !SubgraphState.isRecentlyHavingError(options[i], subgraphName) &&
         !(await SubgraphState.isStaleVersion(options[i], subgraphName)) &&
         (await SubgraphState.isInSync(options[i], subgraphName))
       ) {
@@ -145,12 +146,9 @@ class EndpointBalanceUtil {
       // Dont consider a subgraph troublesome if it hasnt been queried yet
       if (SubgraphState.getEndpointDeployment(endpointIndex, subgraphName)) {
         if (
-          (SubgraphState.endpointHasErrors(endpointIndex, subgraphName) &&
-            now - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
-          (!(await SubgraphState.isInSync(endpointIndex, subgraphName)) &&
-            now - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
-          ((await SubgraphState.isStaleVersion(endpointIndex, subgraphName)) &&
-            now - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < 60 * 1000)
+          SubgraphState.isRecentlyHavingError(endpointIndex, subgraphName) ||
+          (await SubgraphState.isRecentlyOutOfSync(endpointIndex, subgraphName)) ||
+          (await SubgraphState.isRecentlyStaleVersion(endpointIndex, subgraphName))
         ) {
           troublesomeEndpoints.push(endpointIndex);
         }

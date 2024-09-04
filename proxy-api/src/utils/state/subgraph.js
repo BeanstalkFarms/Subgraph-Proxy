@@ -190,6 +190,25 @@ class SubgraphState {
     }
     return true;
   }
+
+  static isRecentlyHavingError(endpointIndex, subgraphName, window = 60 * 1000) {
+    return (
+      SubgraphState.endpointHasErrors(endpointIndex, subgraphName) &&
+      new Date() - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < window
+    );
+  }
+  static async isRecentlyOutOfSync(endpointIndex, subgraphName, window = 60 * 1000) {
+    return (
+      !(await SubgraphState.isInSync(endpointIndex, subgraphName)) &&
+      new Date() - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < window
+    );
+  }
+  static async isRecentlyStaleVersion(endpointIndex, subgraphName, window = 60 * 1000) {
+    return (
+      (await SubgraphState.isStaleVersion(endpointIndex, subgraphName)) &&
+      new Date() - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < window
+    );
+  }
 }
 
 module.exports = SubgraphState;
