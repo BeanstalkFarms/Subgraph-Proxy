@@ -37,6 +37,7 @@ class InitService {
       const client = await SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
       const metaAndVersion = await client(`{${GraphqlQueryUtil.METADATA_QUERY}}`);
       SubgraphState.updateStatesWithResult(endpointIndex, subgraphName, metaAndVersion);
+      SubgraphState.setLastEndpointSelectedTimestamp(endpointIndex, subgraphName);
       console.log(`Initialized e-${endpointIndex} for ${subgraphName}.`);
     } catch (e) {
       console.log(`Failed to initialize e-${endpointIndex} for ${subgraphName}.`);

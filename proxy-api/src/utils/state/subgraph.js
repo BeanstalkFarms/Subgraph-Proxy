@@ -21,8 +21,7 @@ class SubgraphState {
   static _endpointHasErrors = {};
   // Only true when the subgraph implementation's status endpoint indicates a fatal error.
   static _endpointHasFatalErrors = {};
-  // Timestamps of notable events on this endpoint: errors, out of sync, and stale version.
-  // The timestamp is updated any time one of these is encountered.
+  // Timestamps of notable events on this endpoint.
   static _endpointTimestamps = {};
 
   static getLatestSubgraphErrorCheck(subgraphName) {
@@ -96,8 +95,11 @@ class SubgraphState {
     this.setEndpointHasErrors(endpointIndex, subgraphName, value);
   }
 
-  static getLastEndpointUsageTimestamp(endpointIndex, subgraphName) {
-    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.usage;
+  static getLastEndpointSelectedTimestamp(endpointIndex, subgraphName) {
+    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.selected;
+  }
+  static getLastEndpointResultTimestamp(endpointIndex, subgraphName) {
+    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.result;
   }
   static getLastEndpointErrorTimestamp(endpointIndex, subgraphName) {
     return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.error;
@@ -109,8 +111,11 @@ class SubgraphState {
     return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.staleVersion;
   }
 
-  static setLastEndpointUsageTimestamp(endpointIndex, subgraphName) {
-    this.setEndpointTimestamp(endpointIndex, subgraphName, 'usage');
+  static setLastEndpointSelectedTimestamp(endpointIndex, subgraphName) {
+    this.setEndpointTimestamp(endpointIndex, subgraphName, 'selected');
+  }
+  static setLastEndpointResultTimestamp(endpointIndex, subgraphName) {
+    this.setEndpointTimestamp(endpointIndex, subgraphName, 'result');
   }
   static setLastEndpointErrorTimestamp(endpointIndex, subgraphName) {
     this.setEndpointTimestamp(endpointIndex, subgraphName, 'error');
@@ -129,7 +134,7 @@ class SubgraphState {
 
   // Updates persistent states upon a successful request
   static async updateStatesWithResult(endpointIndex, subgraphName, queryResult) {
-    SubgraphState.setLastEndpointUsageTimestamp(endpointIndex, subgraphName);
+    SubgraphState.setLastEndpointResultTimestamp(endpointIndex, subgraphName);
     SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
     SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
     SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);

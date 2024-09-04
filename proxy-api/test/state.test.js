@@ -69,9 +69,9 @@ describe('State: Derived functions', () => {
       expect(SubgraphState.getLastEndpointOutOfSyncTimestamp(0, 'bean')).toEqual(mockTimeFuture);
     });
     test('Endpoint timestamps get set under appropriate circumstances', async () => {
-      expect(SubgraphState.getLastEndpointUsageTimestamp(0, 'bean')).toBeUndefined();
-      SubgraphState.setLastEndpointUsageTimestamp(0, 'bean');
-      expect(SubgraphState.getLastEndpointUsageTimestamp(0, 'bean')).toEqual(mockTimeNow);
+      expect(SubgraphState.getLastEndpointResultTimestamp(0, 'bean')).toBeUndefined();
+      SubgraphState.setLastEndpointResultTimestamp(0, 'bean');
+      expect(SubgraphState.getLastEndpointResultTimestamp(0, 'bean')).toEqual(mockTimeNow);
 
       expect(SubgraphState.getLastEndpointErrorTimestamp(0, 'bean')).toBeUndefined();
       SubgraphState.setEndpointHasErrors(0, 'bean', true);

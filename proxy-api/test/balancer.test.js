@@ -171,7 +171,7 @@ describe('Endpoint Balancer', () => {
       jest.spyOn(SubgraphState, 'getEndpointBlock').mockImplementation((endpointIndex, _) => {
         return endpointIndex === 0 ? 499 : 500;
       });
-      jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockReturnValue(mockTimeNow);
+      jest.spyOn(SubgraphState, 'getLastEndpointResultTimestamp').mockReturnValue(mockTimeNow);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [1])).toEqual(0);
 
@@ -194,7 +194,7 @@ describe('Endpoint Balancer', () => {
         jest.spyOn(BottleneckLimiters, 'getUtilization').mockImplementation((endpointIndex) => {
           return endpointIndex === 0 ? 0.1 : 0;
         });
-        jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockImplementation((endpointIndex, _) => {
+        jest.spyOn(SubgraphState, 'getLastEndpointResultTimestamp').mockImplementation((endpointIndex, _) => {
           return endpointIndex === 0 ? mockTimeNow : mockTimePrev;
         });
       });
@@ -288,7 +288,7 @@ describe('Endpoint Balancer', () => {
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [0])).toEqual(1);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean', [], [1], 500)).toEqual(1);
       // Both having recent results
-      jest.spyOn(SubgraphState, 'getLastEndpointUsageTimestamp').mockReturnValue(mockTimeNow);
+      jest.spyOn(SubgraphState, 'getLastEndpointResultTimestamp').mockReturnValue(mockTimeNow);
       expect(await EndpointBalanceUtil.chooseEndpoint('bean')).toEqual(1);
     });
   });

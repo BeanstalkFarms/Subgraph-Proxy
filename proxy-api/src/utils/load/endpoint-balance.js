@@ -37,6 +37,21 @@ class EndpointBalanceUtil {
    *    If no endpoints are suitable for a reqeuest, returns -1.
    */
   static async chooseEndpoint(subgraphName, blacklist = [], history = [], requiredBlock = null) {
+    const selected = await this._chooseEndpoint(subgraphName, blacklist, history, requiredBlock);
+    SubgraphState.setLastEndpointSelectedTimestamp(selected, subgraphName);
+    return selected;
+  }
+
+  // Returns the current utilization percentage for each endpoint underlying this subgraph
+  static async getSubgraphUtilization(subgraphName) {
+    const utilization = {};
+    for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
+      utilization[endpointIndex] = await BottleneckLimiters.getUtilization(endpointIndex);
+    }
+    return utilization;
+  }
+
+  static async _chooseEndpoint(subgraphName, blacklist, history, requiredBlock) {
     const subgraphEndpoints = EnvUtil.endpointsForSubgraph(subgraphName);
     let options = [];
     // Remove blacklisted/overutilized endpoints
@@ -84,8 +99,8 @@ class EndpointBalanceUtil {
         }
 
         // Use endpoint with later results if neither results are stale
-        const lastA = SubgraphState.getLastEndpointUsageTimestamp(a, subgraphName);
-        const lastB = SubgraphState.getLastEndpointUsageTimestamp(b, subgraphName);
+        const lastA = SubgraphState.getLastEndpointResultTimestamp(a, subgraphName);
+        const lastB = SubgraphState.getLastEndpointResultTimestamp(b, subgraphName);
         if (Math.abs(lastA - lastB) < RECENT_RESULT_MS) {
           const useLaterBlock = (a, b) => {
             return SubgraphState.getEndpointBlock(a) > SubgraphState.getEndpointBlock(b);
@@ -116,7 +131,7 @@ class EndpointBalanceUtil {
     for (let i = 0; i < options.length; ++i) {
       if (
         // No need to check utilization - if there is no recent response and no errors, it cant be over utilized.
-        new Date() - SubgraphState.getLastEndpointUsageTimestamp(options[i], subgraphName) > RECENT_RESULT_MS &&
+        new Date() - SubgraphState.getLastEndpointSelectedTimestamp(options[i], subgraphName) > RECENT_RESULT_MS &&
         !SubgraphState.endpointHasFatalErrors(options[i], subgraphName) &&
         !SubgraphState.isRecentlyHavingError(options[i], subgraphName) &&
         !(await SubgraphState.isStaleVersion(options[i], subgraphName)) &&
@@ -126,15 +141,6 @@ class EndpointBalanceUtil {
       }
     }
     return options[0];
-  }
-
-  // Returns the current utilization percentage for each endpoint underlying this subgraph
-  static async getSubgraphUtilization(subgraphName) {
-    const utilization = {};
-    for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
-      utilization[endpointIndex] = await BottleneckLimiters.getUtilization(endpointIndex);
-    }
-    return utilization;
   }
 
   // A "troublesome endpoint" is defined as an endpoint which is known in the last minute to: (1) have errors,
