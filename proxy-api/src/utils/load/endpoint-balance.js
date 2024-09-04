@@ -2,6 +2,10 @@ const EnvUtil = require('../env');
 const SubgraphState = require('../state/subgraph');
 const BottleneckLimiters = require('./bottleneck-limiters');
 
+// Can consider which endpoint is further indexed when responses from both endpoints
+// are at least this recent.
+const RECENT_RESULT_MS = 2000;
+
 class EndpointBalanceUtil {
   /**
    * Chooses which endpoint to use for an outgoing request.
@@ -19,12 +23,11 @@ class EndpointBalanceUtil {
    *  ii. Otherwise, query the endpoint again if its block >= the latest known
    *      indexed block for that subgraph.
    * iii. If (i) and (ii) were not satisfied, do not query the same endpoint again in the next attempt.
-   *  c. If both have a result within the last second, prefer one having a later block
+   *  c. If both have a result within the last RECENT_RESULT_MS, prefer one having a later block
    *  d. Prefer according to utilization
-   *
-   * 4c. consider: if any do not have a result within the last second, and have no known errors, try that one
-   * this only works if the error checking is sound
-   *  - init should contain the required info
+   * 5. Choose the preferred endpoint, unless any in this preference stack doesn't have
+   *    a result in the last RECENT_RESULT_MS, despite being on the latest version, in sync,
+   *    and without fatal error. In that case, choose the first endpoint matching that description.
    *
    * @param {string} subgraphName
    * @param {number[]} blacklist - none of these endpoints should be returned.
@@ -84,7 +87,7 @@ class EndpointBalanceUtil {
         // Use endpoint with later results if neither results are stale
         const lastA = SubgraphState.getLastEndpointUsageTimestamp(a, subgraphName);
         const lastB = SubgraphState.getLastEndpointUsageTimestamp(b, subgraphName);
-        if (Math.abs(lastA - lastB) < 1000) {
+        if (Math.abs(lastA - lastB) < RECENT_RESULT_MS) {
           const useLaterBlock = (a, b) => {
             return SubgraphState.getEndpointBlock(a) > SubgraphState.getEndpointBlock(b);
           };
@@ -110,6 +113,16 @@ class EndpointBalanceUtil {
         return a - b;
       };
       options.sort(sortLogic);
+    }
+    for (let i = 1; i < options.length; ++i) {
+      if (
+        new Date() - SubgraphState.getLastEndpointUsageTimestamp(options[i], subgraphName) > RECENT_RESULT_MS &&
+        !SubgraphState.endpointHasFatalErrors(options[i], subgraphName) &&
+        !(await SubgraphState.isStaleVersion(options[i], subgraphName)) &&
+        (await SubgraphState.isInSync(options[i], subgraphName))
+      ) {
+        return options[i];
+      }
     }
     return options[0];
   }
