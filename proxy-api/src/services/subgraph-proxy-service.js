@@ -37,22 +37,44 @@ class SubgraphProxyService {
   static async _getQueryResult(subgraphName, query) {
     const startTime = new Date();
     const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
+    const failedEndpoints = [];
+    const unsyncdEndpoints = [];
+    const staleVersionEndpoints = [];
     const endpointHistory = [];
     try {
-      const result = await this._getReliableResult(subgraphName, query, endpointHistory);
-      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory);
+      const result = await this._getReliableResult(
+        subgraphName,
+        query,
+        failedEndpoints,
+        unsyncdEndpoints,
+        staleVersionEndpoints,
+        endpointHistory
+      );
+      LoggingUtil.logSuccessfulProxy(subgraphName, startTime, startUtilization, endpointHistory, [
+        ...failedEndpoints,
+        ...unsyncdEndpoints,
+        ...staleVersionEndpoints
+      ]);
       return result;
     } catch (e) {
-      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory);
+      LoggingUtil.logFailedProxy(subgraphName, startTime, startUtilization, endpointHistory, [
+        ...failedEndpoints,
+        ...unsyncdEndpoints,
+        ...staleVersionEndpoints
+      ]);
       throw e;
     }
   }
 
   // Returns a reliable query result with respect to response consistency and api availability.
-  static async _getReliableResult(subgraphName, query, endpointHistory) {
-    const failedEndpoints = [];
-    const unsyncdEndpoints = [];
-    const staleVersionEndpoints = [];
+  static async _getReliableResult(
+    subgraphName,
+    query,
+    failedEndpoints,
+    unsyncdEndpoints,
+    staleVersionEndpoints,
+    endpointHistory
+  ) {
     const errors = [];
     const requiredBlock = GraphqlQueryUtil.maxRequestedBlock(query);
     let endpointIndex;
