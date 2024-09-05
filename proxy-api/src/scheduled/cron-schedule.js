@@ -2,16 +2,17 @@ const cron = require('node-cron');
 const DiscordUtil = require('../utils/discord');
 const SubgraphStatusService = require('../services/subgraph-status-service');
 const GraphStateTask = require('./tasks/graph-state');
+const StatusTask = require('./tasks/status');
 
 // All cron jobs which could be activated are configured here
 const ALL_JOBS = {
   status: {
     cron: '* * * * *',
-    function: SubgraphStatusService.checkAll.bind(SubgraphStatusService)
+    function: StatusTask.checkAll
   },
   reInitGraphState: {
     cron: '0/30 * * * *',
-    function: GraphStateTask.updateGraphEndpointStates.bind(GraphStateTask)
+    function: GraphStateTask.updateGraphEndpointStates
   }
 };
 
