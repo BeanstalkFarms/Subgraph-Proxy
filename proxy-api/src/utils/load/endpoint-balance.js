@@ -2,6 +2,9 @@ const EnvUtil = require('../env');
 const SubgraphState = require('../state/subgraph');
 const BottleneckLimiters = require('./bottleneck-limiters');
 
+// Can consider which endpoint is further indexed when responses from both endpoints are at least this recent.
+const RECENT_RESULT_MS = 2000;
+
 class EndpointBalanceUtil {
   /**
    * Chooses which endpoint to use for an outgoing request.
@@ -19,8 +22,12 @@ class EndpointBalanceUtil {
    *  ii. Otherwise, query the endpoint again if its block >= the latest known
    *      indexed block for that subgraph.
    * iii. If (i) and (ii) were not satisfied, do not query the same endpoint again in the next attempt.
-   *  c. If both have a result within the last second, prefer one having a later block
+   *  c. If both have a result within the last RECENT_RESULT_MS, prefer one having a later block
    *  d. Prefer according to utilization
+   * 5. Choose the preferred endpoint, unless any in this preference stack doesn't have a result in
+   *    the last RECENT_RESULT_MS, despite being on the latest version, in sync, and without fatal error
+   *    or recent errors. In that case, choose the first endpoint matching that description.
+   *
    * @param {string} subgraphName
    * @param {number[]} blacklist - none of these endpoints should be returned.
    * @param {number[]} history - sequence of endpoints which have been chosen and queried to serve this request.
@@ -30,6 +37,21 @@ class EndpointBalanceUtil {
    *    If no endpoints are suitable for a reqeuest, returns -1.
    */
   static async chooseEndpoint(subgraphName, blacklist = [], history = [], requiredBlock = null) {
+    const selected = await this._chooseEndpoint(subgraphName, blacklist, history, requiredBlock);
+    SubgraphState.setLastEndpointSelectedTimestamp(selected, subgraphName);
+    return selected;
+  }
+
+  // Returns the current utilization percentage for each endpoint underlying this subgraph
+  static async getSubgraphUtilization(subgraphName) {
+    const utilization = {};
+    for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
+      utilization[endpointIndex] = await BottleneckLimiters.getUtilization(endpointIndex);
+    }
+    return utilization;
+  }
+
+  static async _chooseEndpoint(subgraphName, blacklist, history, requiredBlock) {
     const subgraphEndpoints = EnvUtil.endpointsForSubgraph(subgraphName);
     let options = [];
     // Remove blacklisted/overutilized endpoints
@@ -46,7 +68,7 @@ class EndpointBalanceUtil {
     }
 
     // If possible, avoid known troublesome endpoints
-    const troublesomeEndpoints = this._getTroublesomeEndpoints(options, subgraphName);
+    const troublesomeEndpoints = await this._getTroublesomeEndpoints(options, subgraphName);
     if (options.length !== troublesomeEndpoints.length) {
       options = options.filter((endpoint) => !troublesomeEndpoints.includes(endpoint));
     }
@@ -77,9 +99,9 @@ class EndpointBalanceUtil {
         }
 
         // Use endpoint with later results if neither results are stale
-        const lastA = SubgraphState.getLastEndpointUsageTimestamp(a, subgraphName);
-        const lastB = SubgraphState.getLastEndpointUsageTimestamp(b, subgraphName);
-        if (Math.abs(lastA - lastB) < 1000) {
+        const lastA = SubgraphState.getLastEndpointResultTimestamp(a, subgraphName);
+        const lastB = SubgraphState.getLastEndpointResultTimestamp(b, subgraphName);
+        if (Math.abs(lastA - lastB) < RECENT_RESULT_MS) {
           const useLaterBlock = (a, b) => {
             return SubgraphState.getEndpointBlock(a) > SubgraphState.getEndpointBlock(b);
           };
@@ -106,36 +128,32 @@ class EndpointBalanceUtil {
       };
       options.sort(sortLogic);
     }
-    return options[0];
-  }
-
-  // Returns the current utilization percentage for each endpoint underlying this subgraph
-  static async getSubgraphUtilization(subgraphName) {
-    const utilization = {};
-    for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
-      utilization[endpointIndex] = await BottleneckLimiters.getUtilization(endpointIndex);
+    for (let i = 0; i < options.length; ++i) {
+      if (
+        // No need to check utilization - if there is no recent response and no errors, it cant be over utilized.
+        new Date() - SubgraphState.getLastEndpointSelectedTimestamp(options[i], subgraphName) > RECENT_RESULT_MS &&
+        !SubgraphState.endpointHasFatalErrors(options[i], subgraphName) &&
+        !SubgraphState.isRecentlyHavingError(options[i], subgraphName) &&
+        !(await SubgraphState.isStaleVersion(options[i], subgraphName)) &&
+        (await SubgraphState.isInSync(options[i], subgraphName))
+      ) {
+        return options[i];
+      }
     }
-    return utilization;
+    return options[0];
   }
 
   // A "troublesome endpoint" is defined as an endpoint which is known in the last minute to: (1) have errors,
   // (2) be out of sync/singificantly behind in indexing, or (3) not running the latest subgraph version
-  static _getTroublesomeEndpoints(endpointsIndices, subgraphName) {
-    const now = new Date();
+  static async _getTroublesomeEndpoints(endpointsIndices, subgraphName) {
     const troublesomeEndpoints = [];
     for (const endpointIndex of endpointsIndices) {
-      // Dont consider a subgraph troublesome if it hasnt been queried yet
-      if (SubgraphState.getEndpointDeployment(endpointIndex, subgraphName)) {
-        if (
-          (SubgraphState.endpointHasErrors(endpointIndex, subgraphName) &&
-            now - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
-          (!SubgraphState.isInSync(endpointIndex, subgraphName) &&
-            now - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < 60 * 1000) ||
-          (SubgraphState.isStaleVersion(endpointIndex, subgraphName) &&
-            now - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < 60 * 1000)
-        ) {
-          troublesomeEndpoints.push(endpointIndex);
-        }
+      if (
+        SubgraphState.isRecentlyHavingError(endpointIndex, subgraphName) ||
+        (await SubgraphState.isRecentlyOutOfSync(endpointIndex, subgraphName)) ||
+        (await SubgraphState.isRecentlyStaleVersion(endpointIndex, subgraphName))
+      ) {
+        troublesomeEndpoints.push(endpointIndex);
       }
     }
     return troublesomeEndpoints;

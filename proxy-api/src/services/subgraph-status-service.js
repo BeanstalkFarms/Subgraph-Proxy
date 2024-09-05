@@ -41,23 +41,6 @@ class SubgraphStatusService {
     return fatalError;
   }
 
-  // Perform an error check if utilization is low. There is no need to do the check when
-  // utilization is high, since regular api requests perform the check also.
-  static async checkAll() {
-    for (const subgraphName of EnvUtil.getEnabledSubgraphs()) {
-      for (const endpointIndex of EnvUtil.endpointsForSubgraph(subgraphName)) {
-        const utilization = await BottleneckLimiters.getUtilization(endpointIndex);
-        if (utilization <= EnvUtil.getStatusCheckMaxUtilization()) {
-          try {
-            await this.checkFatalError(endpointIndex, subgraphName);
-          } catch (e) {
-            console.log(`Failed to retrieve status for ${subgraphName} e-${endpointIndex}.`);
-          }
-        }
-      }
-    }
-  }
-
   static async _getAlchemyStatus(endpointIndex, subgraphName) {
     const statusUrl = EnvUtil.underlyingUrl(endpointIndex, subgraphName).replace('/api', '/status');
     const status = await BottleneckLimiters.schedule(endpointIndex, async () => await axios.post(statusUrl));

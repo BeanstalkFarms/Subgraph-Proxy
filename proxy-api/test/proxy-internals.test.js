@@ -9,7 +9,9 @@ const { captureAndReturn } = require('./utils/capture-args');
 
 const beanResponse = require('./mock-responses/bean.json');
 const beanBehindResponse = require('./mock-responses/beanBehind.json');
+const beanFarBehindResponse = require('./mock-responses/beanFarBehind.json');
 const beanNewDeploymentResponse = require('./mock-responses/beanNewDeployment.json');
+const beanOldVersionResponse = require('./mock-responses/beanOldVersion.json');
 const RateLimitError = require('../src/error/rate-limit-error');
 const EnvUtil = require('../src/utils/env');
 const SubgraphStatusService = require('../src/services/subgraph-status-service');
@@ -24,6 +26,11 @@ describe('Subgraph Proxy - Core', () => {
   beforeEach(() => {
     // Clears call history (NOT implementations)
     jest.clearAllMocks();
+    jest.spyOn(SubgraphClients, 'makeCallableClient').mockReset();
+    // Reset static members between test
+    for (const property of Object.keys(SubgraphState)) {
+      SubgraphState[property] = {};
+    }
   });
 
   beforeAll(() => {
@@ -60,6 +67,7 @@ describe('Subgraph Proxy - Core', () => {
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, -1, ...args))
         .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
       jest.spyOn(SubgraphState, 'getLatestSubgraphErrorCheck').mockReturnValue(undefined);
+      jest.spyOn(SubgraphState, 'getEndpointChain').mockReturnValue('ethereum');
     });
 
     test('Initial endpoint succeeds', async () => {
@@ -136,6 +144,45 @@ describe('Subgraph Proxy - Core', () => {
       expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
       expect(endpointArgCapture[1]).toEqual(['bean', [0], [0], null]);
       expect(endpointArgCapture[2]).toEqual(['bean', [0, 1], [0, 1], null]);
+    });
+    describe('Old subgraph version is not accepted', () => {
+      beforeEach(() => {
+        jest
+          .spyOn(EndpointBalanceUtil, 'chooseEndpoint')
+          .mockReset()
+          .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args))
+          .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 1, ...args))
+          .mockImplementationOnce((...args) => captureAndReturn(endpointArgCapture, 0, ...args));
+        // Old version will be served on endpoint 0 as 2.3.0
+        SubgraphState.setEndpointBlock(1, 'bean', responseBlock);
+        SubgraphState.setEndpointVersion(1, 'bean', '2.3.1');
+      });
+      test('Unless newer fails', async () => {
+        jest
+          .spyOn(SubgraphClients, 'makeCallableClient')
+          .mockResolvedValueOnce(async () => beanOldVersionResponse)
+          .mockImplementationOnce(async () => async () => {
+            throw new Error('Generic failure reason');
+          })
+          .mockResolvedValueOnce(async () => beanOldVersionResponse);
+
+        await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
+        expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
+        expect(endpointArgCapture[1]).toEqual(['bean', [0], [0], null]);
+        expect(endpointArgCapture[2]).toEqual(['bean', [1], [0, 1], null]);
+      });
+      test('Unless newer becomes out of sync', async () => {
+        jest
+          .spyOn(SubgraphClients, 'makeCallableClient')
+          .mockResolvedValueOnce(async () => beanOldVersionResponse)
+          .mockResolvedValueOnce(async () => beanFarBehindResponse)
+          .mockResolvedValueOnce(async () => beanOldVersionResponse);
+
+        await expect(SubgraphProxyService._getQueryResult('bean', 'graphql query')).resolves.not.toThrow();
+        expect(EndpointBalanceUtil.chooseEndpoint).toHaveBeenCalledTimes(3);
+        expect(endpointArgCapture[1]).toEqual(['bean', [0], [0], null]);
+        expect(endpointArgCapture[2]).toEqual(['bean', [1], [0, 1], null]);
+      });
     });
     test('User explicitly queries far past block', async () => {
       jest.spyOn(SubgraphClients, 'makeCallableClient').mockImplementationOnce(async () => async () => {

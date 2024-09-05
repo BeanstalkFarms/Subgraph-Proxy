@@ -21,8 +21,7 @@ class SubgraphState {
   static _endpointHasErrors = {};
   // Only true when the subgraph implementation's status endpoint indicates a fatal error.
   static _endpointHasFatalErrors = {};
-  // Timestamps of notable events on this endpoint: errors, out of sync, and stale version.
-  // The timestamp is updated any time one of these is encountered.
+  // Timestamps of notable events on this endpoint.
   static _endpointTimestamps = {};
 
   static getLatestSubgraphErrorCheck(subgraphName) {
@@ -46,9 +45,9 @@ class SubgraphState {
   static getEndpointVersion(endpointIndex, subgraphName) {
     return this._endpointVersion[`${endpointIndex}-${subgraphName}`];
   }
-  static setEndpointVersion(endpointIndex, subgraphName, version) {
+  static async setEndpointVersion(endpointIndex, subgraphName, version) {
     this._endpointVersion[`${endpointIndex}-${subgraphName}`] = version;
-    if (this.isStaleVersion(endpointIndex, subgraphName)) {
+    if (await this.isStaleVersion(endpointIndex, subgraphName)) {
       // Update timestamp
       this.setLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName);
     }
@@ -96,8 +95,11 @@ class SubgraphState {
     this.setEndpointHasErrors(endpointIndex, subgraphName, value);
   }
 
-  static getLastEndpointUsageTimestamp(endpointIndex, subgraphName) {
-    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.usage;
+  static getLastEndpointSelectedTimestamp(endpointIndex, subgraphName) {
+    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.selected;
+  }
+  static getLastEndpointResultTimestamp(endpointIndex, subgraphName) {
+    return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.result;
   }
   static getLastEndpointErrorTimestamp(endpointIndex, subgraphName) {
     return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.error;
@@ -109,8 +111,11 @@ class SubgraphState {
     return this._endpointTimestamps[`${endpointIndex}-${subgraphName}`]?.staleVersion;
   }
 
-  static setLastEndpointUsageTimestamp(endpointIndex, subgraphName) {
-    this.setEndpointTimestamp(endpointIndex, subgraphName, 'usage');
+  static setLastEndpointSelectedTimestamp(endpointIndex, subgraphName) {
+    this.setEndpointTimestamp(endpointIndex, subgraphName, 'selected');
+  }
+  static setLastEndpointResultTimestamp(endpointIndex, subgraphName) {
+    this.setEndpointTimestamp(endpointIndex, subgraphName, 'result');
   }
   static setLastEndpointErrorTimestamp(endpointIndex, subgraphName) {
     this.setEndpointTimestamp(endpointIndex, subgraphName, 'error');
@@ -129,11 +134,11 @@ class SubgraphState {
 
   // Updates persistent states upon a successful request
   static async updateStatesWithResult(endpointIndex, subgraphName, queryResult) {
-    SubgraphState.setLastEndpointUsageTimestamp(endpointIndex, subgraphName);
+    SubgraphState.setLastEndpointResultTimestamp(endpointIndex, subgraphName);
     SubgraphState.setEndpointDeployment(endpointIndex, subgraphName, queryResult._meta.deployment);
-    SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
     SubgraphState.setEndpointChain(endpointIndex, subgraphName, queryResult.version.chain);
     SubgraphState.setEndpointBlock(endpointIndex, subgraphName, queryResult._meta.block.number);
+    SubgraphState.setEndpointVersion(endpointIndex, subgraphName, queryResult.version.versionNumber);
     SubgraphState.setEndpointHasErrors(endpointIndex, subgraphName, false);
   }
 
@@ -142,6 +147,17 @@ class SubgraphState {
     let versions = [];
     for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
       versions.push(this._endpointVersion[`${i}-${subgraphName}`]);
+    }
+    versions = versions.filter((v) => v !== undefined).sort(SemVerUtil.compareVersions);
+    return versions[versions.length - 1];
+  }
+
+  static async getLatestActiveVersion(subgraphName) {
+    let versions = [];
+    for (const i of EnvUtil.endpointsForSubgraph(subgraphName)) {
+      if ((await this.isInSync(i, subgraphName)) && !this.endpointHasErrors(i, subgraphName)) {
+        versions.push(this._endpointVersion[`${i}-${subgraphName}`]);
+      }
     }
     versions = versions.filter((v) => v !== undefined).sort(SemVerUtil.compareVersions);
     return versions[versions.length - 1];
@@ -159,14 +175,14 @@ class SubgraphState {
   // Not a perfect assumption - the endpoint is considered in sync if it is within 50 blocks of the chain head.
   static async isInSync(endpointIndex, subgraphName) {
     const chain = this.getEndpointChain(endpointIndex, subgraphName);
-    return this.getEndpointBlock(endpointIndex, subgraphName) + 50 > (await ChainState.getChainHead(chain));
+    return chain && this.getEndpointBlock(endpointIndex, subgraphName) + 50 > (await ChainState.getChainHead(chain));
   }
 
-  static isStaleVersion(endpointIndex, subgraphName) {
+  static async isStaleVersion(endpointIndex, subgraphName) {
     return (
       SemVerUtil.compareVersions(
         this.getEndpointVersion(endpointIndex, subgraphName),
-        this.getLatestVersion(subgraphName)
+        await this.getLatestActiveVersion(subgraphName)
       ) === -1
     );
   }
@@ -178,6 +194,25 @@ class SubgraphState {
       }
     }
     return true;
+  }
+
+  static isRecentlyHavingError(endpointIndex, subgraphName, window = 60 * 1000) {
+    return (
+      SubgraphState.endpointHasErrors(endpointIndex, subgraphName) &&
+      new Date() - SubgraphState.getLastEndpointErrorTimestamp(endpointIndex, subgraphName) < window
+    );
+  }
+  static async isRecentlyOutOfSync(endpointIndex, subgraphName, window = 60 * 1000) {
+    return (
+      !(await SubgraphState.isInSync(endpointIndex, subgraphName)) &&
+      new Date() - SubgraphState.getLastEndpointOutOfSyncTimestamp(endpointIndex, subgraphName) < window
+    );
+  }
+  static async isRecentlyStaleVersion(endpointIndex, subgraphName, window = 60 * 1000) {
+    return (
+      (await SubgraphState.isStaleVersion(endpointIndex, subgraphName)) &&
+      new Date() - SubgraphState.getLastEndpointStaleVersionTimestamp(endpointIndex, subgraphName) < window
+    );
   }
 }
 

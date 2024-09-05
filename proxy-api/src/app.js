@@ -12,7 +12,7 @@ async function appStartup() {
   // Activate whichever cron jobs are configured, if any
   activateJobs(EnvUtil.getEnabledCronJobs());
 
-  await InitService.initAllSubgraphStates();
+  await InitService.initAllStates();
 
   const app = new Koa();
 

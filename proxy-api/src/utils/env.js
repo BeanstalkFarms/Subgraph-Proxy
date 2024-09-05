@@ -60,6 +60,16 @@ class EnvUtil {
     return validIndices;
   }
 
+  static subgraphsForEndpoint(endpointIndex) {
+    const subgraphNames = [];
+    for (let i = 0; i < ENDPOINT_SG_IDS[endpointIndex].length; ++i) {
+      if (ENDPOINT_SG_IDS[endpointIndex][i]?.trim()) {
+        subgraphNames.push(ENABLED_SUBGRAPHS[i]);
+      }
+    }
+    return subgraphNames;
+  }
+
   // Getters for actual env values
   static getEndpoints() {
     return ENDPOINTS;
