@@ -15,9 +15,9 @@ class SubgraphClients {
   }
 
   static async makeCallableClient(endpointIndex, subgraphName) {
-    const callableClient = async (query) => {
+    const callableClient = async (query, variables) => {
       const client = this.getClient(endpointIndex, subgraphName);
-      const response = await client.request(query);
+      const response = await client.request(query, variables);
       return response;
     };
     const limiterWrapped = await BottleneckLimiters.wrap(endpointIndex, callableClient);

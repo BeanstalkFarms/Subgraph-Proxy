@@ -28,7 +28,7 @@ describe('Utils', () => {
       `;
       const result = await SubgraphProxyService.handleProxyRequest('bean', query);
 
-      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query));
+      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query), undefined);
       expect(result.meta.deployment).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
       expect(result.body.beanCrosses.length).toEqual(5);
       expect(result.body._meta).toBeUndefined();
@@ -51,7 +51,7 @@ describe('Utils', () => {
       `;
       const result = await SubgraphProxyService.handleProxyRequest('bean', query);
 
-      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query));
+      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query), undefined);
       expect(result.meta.deployment).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
       expect(result.body.beanCrosses.length).toEqual(5);
       expect(result.body._meta.block.number).toEqual(responseBlock);
