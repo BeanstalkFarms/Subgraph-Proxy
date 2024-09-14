@@ -58,6 +58,20 @@ describe('Utils', () => {
       expect(result.body.version).toBeUndefined();
     });
 
+    test('Interpolates variables into query', () => {
+      const interpolated = GraphqlQueryUtil.interpolateVariables(
+        gql`
+          {
+            beanHourlySnapshots(where: { season_lte: $season_lte }) {
+              id
+            }
+          }
+        `,
+        { season_lte: 25000 }
+      );
+      expect(interpolated).toContain('season_lte: 25000');
+    });
+
     test('Identifies maximal explicitly requested block', () => {
       expect(
         GraphqlQueryUtil.maxRequestedBlock(gql`

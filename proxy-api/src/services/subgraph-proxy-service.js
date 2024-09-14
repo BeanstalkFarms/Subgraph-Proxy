@@ -13,16 +13,17 @@ const SubgraphStatusService = require('./subgraph-status-service');
 
 class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
-  static async handleProxyRequest(subgraphName, originalQuery) {
+  static async handleProxyRequest(subgraphName, originalQuery, variables) {
     EnvUtil.throwOnInvalidName(subgraphName);
-    const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
+    const interpolatedQuery = GraphqlQueryUtil.interpolateVariables(originalQuery, variables);
+    const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(interpolatedQuery);
     const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata);
 
     const version = queryResult.version.versionNumber;
     const deployment = queryResult._meta.deployment;
     const chain = queryResult.version.chain;
 
-    const result = GraphqlQueryUtil.removeUnrequestedMetadataFromResult(queryResult, originalQuery);
+    const result = GraphqlQueryUtil.removeUnrequestedMetadataFromResult(queryResult, interpolatedQuery);
     return {
       meta: {
         version,
