@@ -15,15 +15,14 @@ class SubgraphProxyService {
   // Proxies a subgraph request, accounting for version numbers and indexed blocks
   static async handleProxyRequest(subgraphName, originalQuery, variables) {
     EnvUtil.throwOnInvalidName(subgraphName);
-    const interpolatedQuery = GraphqlQueryUtil.interpolateVariables(originalQuery, variables);
-    const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(interpolatedQuery);
-    const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata);
+    const queryWithMetadata = GraphqlQueryUtil.addMetadataToQuery(originalQuery);
+    const queryResult = await this._getQueryResult(subgraphName, queryWithMetadata, variables);
 
     const version = queryResult.version.versionNumber;
     const deployment = queryResult._meta.deployment;
     const chain = queryResult.version.chain;
 
-    const result = GraphqlQueryUtil.removeUnrequestedMetadataFromResult(queryResult, interpolatedQuery);
+    const result = GraphqlQueryUtil.removeUnrequestedMetadataFromResult(queryResult, originalQuery);
     return {
       meta: {
         version,
@@ -35,7 +34,7 @@ class SubgraphProxyService {
   }
 
   // Gets the result for this query from one of the available endpoints.
-  static async _getQueryResult(subgraphName, query) {
+  static async _getQueryResult(subgraphName, query, variables) {
     const startTime = new Date();
     const startUtilization = await EndpointBalanceUtil.getSubgraphUtilization(subgraphName);
     const failedEndpoints = [];
@@ -46,6 +45,7 @@ class SubgraphProxyService {
       const result = await this._getReliableResult(
         subgraphName,
         query,
+        variables,
         failedEndpoints,
         unsyncdEndpoints,
         staleVersionEndpoints,
@@ -71,6 +71,7 @@ class SubgraphProxyService {
   static async _getReliableResult(
     subgraphName,
     query,
+    variables,
     failedEndpoints,
     unsyncdEndpoints,
     staleVersionEndpoints,
@@ -91,7 +92,7 @@ class SubgraphProxyService {
       let queryResult;
       try {
         const client = await SubgraphClients.makeCallableClient(endpointIndex, subgraphName);
-        queryResult = await client(query);
+        queryResult = await client(query, variables);
       } catch (e) {
         if (e instanceof RateLimitError) {
           break; // Will likely result in rethrowing a different RateLimitError

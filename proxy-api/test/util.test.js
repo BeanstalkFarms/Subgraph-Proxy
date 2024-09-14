@@ -28,7 +28,7 @@ describe('Utils', () => {
       `;
       const result = await SubgraphProxyService.handleProxyRequest('bean', query);
 
-      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query));
+      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query), undefined);
       expect(result.meta.deployment).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
       expect(result.body.beanCrosses.length).toEqual(5);
       expect(result.body._meta).toBeUndefined();
@@ -51,25 +51,11 @@ describe('Utils', () => {
       `;
       const result = await SubgraphProxyService.handleProxyRequest('bean', query);
 
-      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query));
+      expect(spy).toHaveBeenCalledWith('bean', GraphqlQueryUtil.addMetadataToQuery(query), undefined);
       expect(result.meta.deployment).toEqual('QmXXZrhjqb4ygSWVgkPYBWJ7AzY4nKEUqiN5jnDopWBSCD');
       expect(result.body.beanCrosses.length).toEqual(5);
       expect(result.body._meta.block.number).toEqual(responseBlock);
       expect(result.body.version).toBeUndefined();
-    });
-
-    test('Interpolates variables into query', () => {
-      const interpolated = GraphqlQueryUtil.interpolateVariables(
-        gql`
-          {
-            beanHourlySnapshots(where: { season_lte: $season_lte }) {
-              id
-            }
-          }
-        `,
-        { season_lte: 25000 }
-      );
-      expect(interpolated).toContain('season_lte: 25000');
     });
 
     test('Identifies maximal explicitly requested block', () => {

@@ -12,15 +12,6 @@ class GraphqlQueryUtil {
         chain
       }`;
 
-  static interpolateVariables(graphqlQuery, variables) {
-    if (variables) {
-      for (const property in variables) {
-        graphqlQuery = graphqlQuery.replace(`$${property}`, variables[property]);
-      }
-    }
-    return graphqlQuery;
-  }
-
   static addMetadataToQuery(graphqlQuery) {
     return graphqlQuery.replace('{', `{\n${this.METADATA_QUERY}`);
   }
