@@ -130,7 +130,7 @@ class SubgraphProxyService {
         // another. Do not accept this response. A valid response is expected on the next attempt
       }
     }
-    await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints);
+    await this._throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints, staleVersionEndpoints);
   }
 
   // Identifies whether the failure is recoverable, due to response being behind an explicitly requested block.
@@ -164,8 +164,8 @@ class SubgraphProxyService {
   }
 
   // Throws an exception based on the failure reason
-  static async _throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints) {
-    const endpointsAttempted = failedEndpoints.length + unsyncdEndpoints.length;
+  static async _throwFailureReason(subgraphName, errors, failedEndpoints, unsyncdEndpoints, staleVersionEndpoints) {
+    const endpointsAttempted = failedEndpoints.length + unsyncdEndpoints.length + staleVersionEndpoints.length;
     if (endpointsAttempted < EnvUtil.endpointsForSubgraph(subgraphName).length) {
       // If any of the endpoints were not attempted, assume this is a rate limiting issue.
       // This is preferable to performing the status check on a failing endpoint,
