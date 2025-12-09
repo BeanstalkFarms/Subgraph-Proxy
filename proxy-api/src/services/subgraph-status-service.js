@@ -15,10 +15,14 @@ class SubgraphStatusService {
         const alchemyStatus = await this._getAlchemyStatus(endpointIndex, subgraphName);
         fatalError = alchemyStatus.data.data.indexingStatusForCurrentVersion.fatalError?.message;
         break;
+      case 'goldsky':
+        return undefined;
       case 'graph':
-        const graphStatus = await this._getGraphStatus(endpointIndex, subgraphName);
-        fatalError = graphStatus.data.data.indexingStatuses[0].fatalError?.message;
-        break;
+        // Graph status endpoint changed, I couldnt find a realiable alternative.
+        // const graphStatus = await this._getGraphStatus(endpointIndex, subgraphName);
+        // fatalError = graphStatus.data.data.indexingStatuses[0].fatalError?.message;
+        // break;
+        return undefined;
       default:
         throw new Error(`Unrecognized endpoint type '${endpointType}'.`);
     }
