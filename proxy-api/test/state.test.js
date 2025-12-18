@@ -10,7 +10,7 @@ describe('State: Derived functions', () => {
     jest.resetAllMocks();
     jest.spyOn(EnvUtil, 'endpointsForSubgraph').mockReturnValue([0, 1]);
     jest.spyOn(ChainState, 'getChainHead').mockResolvedValue(500);
-    jest.spyOn(SubgraphState, 'getEndpointChain').mockResolvedValue('ethereum');
+    jest.spyOn(SubgraphState, 'getEndpointChain').mockReturnValue('ethereum');
     // Reset static members between test
     for (const property of Object.keys(SubgraphState)) {
       SubgraphState[property] = {};
